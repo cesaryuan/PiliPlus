@@ -214,26 +214,45 @@ class VideoHttp {
     });
 
     try {
-      var res = await Request().get(
-        videoType.api,
-        queryParameters: params,
-      );
+      late Response res;
+      late Response resProgress;
+
+      if (Accounts.get(AccountType.video).mid !=
+          Accounts.get(AccountType.progress).mid) {
+        // 并行获取视频数据和进度数据
+        final results = await Future.wait([
+          Request().get(videoType.api, queryParameters: params),
+          Request().get('${videoType.api}#progress#', queryParameters: params),
+        ]);
+        res = results[0];
+        resProgress = results[1];
+      } else {
+        // 只需要获取视频数据，进度数据使用相同的结果
+        res = await Request().get(
+          videoType.api,
+          queryParameters: params,
+        );
+        resProgress = res;
+      }
 
       if (res.data['code'] == 0) {
         late PlayUrlModel data;
         switch (videoType) {
           case VideoType.ugc:
             data = PlayUrlModel.fromJson(res.data['data']);
+            data.lastPlayTime = resProgress.data['data']['last_play_time'];
           case VideoType.pugv:
             var result = res.data['data'];
+            var resultProgress = resProgress.data['data'];
             data = PlayUrlModel.fromJson(result)
               ..lastPlayTime =
-                  result?['play_view_business_info']?['user_status']?['watch_progress']?['current_watch_progress'];
+                  resultProgress?['play_view_business_info']?['user_status']?['watch_progress']?['current_watch_progress'];
           case VideoType.pgc:
             var result = res.data['result'];
+            var resultProgress = resProgress.data['result'];
             data = PlayUrlModel.fromJson(result['video_info'])
               ..lastPlayTime =
-                  result?['play_view_business_info']?['user_status']?['watch_progress']?['current_watch_progress'];
+                  resultProgress?['play_view_business_info']?['user_status']?['watch_progress']?['current_watch_progress'];
         }
         return Success(data);
       } else if (epid != null && videoType == VideoType.ugc) {
