@@ -46,7 +46,7 @@ class PgcIntroController extends CommonIntroController {
   late final PgcInfoModel pgcItem;
 
   @override
-  (Object, int) getFavRidType() => (epId!, 24);
+  (Object, int) get getFavRidType => (epId!, 24);
 
   @override
   StatDetail? getStat() => pgcItem.stat;
@@ -131,7 +131,7 @@ class PgcIntroController extends CommonIntroController {
 
     if (GlobalData().coins != null && GlobalData().coins! < 1) {
       SmartDialog.showToast('硬币不足');
-      return;
+      // return;
     }
 
     PayCoinsPage.toPayCoinsPage(
@@ -175,17 +175,18 @@ class PgcIntroController extends CommonIntroController {
                   PageUtils.launchURL(videoUrl);
                 },
               ),
-              ListTile(
-                dense: true,
-                title: const Text(
-                  '分享视频',
-                  style: TextStyle(fontSize: 14),
+              if (Utils.isMobile)
+                ListTile(
+                  dense: true,
+                  title: const Text(
+                    '分享视频',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  onTap: () {
+                    Get.back();
+                    Utils.shareText(videoUrl);
+                  },
                 ),
-                onTap: () {
-                  Get.back();
-                  Utils.shareText(videoUrl);
-                },
-              ),
               ListTile(
                 dense: true,
                 title: const Text(
@@ -277,7 +278,7 @@ class PgcIntroController extends CommonIntroController {
   }
 
   // 修改分P或番剧分集
-  Future<void> onChangeEpisode(BaseEpisodeItem episode) async {
+  Future<bool> onChangeEpisode(BaseEpisodeItem episode) async {
     try {
       final int epId = episode.epId ?? episode.id!;
       final String bvid = episode.bvid ?? this.bvid;
@@ -285,7 +286,7 @@ class PgcIntroController extends CommonIntroController {
       final int? cid =
           episode.cid ?? await SearchHttp.ab2c(aid: aid, bvid: bvid);
       if (cid == null) {
-        return;
+        return false;
       }
       final String? cover = episode.cover;
 
@@ -323,8 +324,10 @@ class PgcIntroController extends CommonIntroController {
       this.cid.value = cid;
       queryOnlineTotal();
       queryVideoIntro(episode as EpisodeItem);
+      return true;
     } catch (e) {
       if (kDebugMode) debugPrint('pgc onChangeEpisode: $e');
+      return false;
     }
   }
 

@@ -1,19 +1,17 @@
 import 'package:PiliPlus/common/widgets/text_field/controller.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
-    show MainListReply, ReplyInfo, SubjectControl, Mode;
+    show MainListReply, ReplyInfo, SubjectControl, Mode, EditorIconState;
 import 'package:PiliPlus/grpc/bilibili/pagination.pb.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/reply.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/pages/common/common_list_controller.dart';
 import 'package:PiliPlus/pages/video/reply_new/view.dart';
-import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/reply_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:easy_debounce/easy_throttle.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -21,14 +19,12 @@ import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 
 abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
-  RxInt count = (-1).obs;
+  final RxInt count = (-1).obs;
 
-  late Rx<ReplySortType> sortType;
-  late Rx<Mode> mode;
+  late final Rx<ReplySortType> sortType;
+  late final Rx<Mode> mode;
 
-  late final savedReplies = <Object, List<RichTextItem>?>{};
-
-  AccountService accountService = Get.find<AccountService>();
+  final savedReplies = <Object, List<RichTextItem>?>{};
 
   Int64? upMid;
   Int64? cursorNext;
@@ -90,24 +86,26 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
 
   // 排序搜索评论
   void queryBySort() {
-    EasyThrottle.throttle('queryBySort', const Duration(seconds: 1), () {
-      feedBack();
-      switch (sortType.value) {
-        case ReplySortType.time:
-          sortType.value = ReplySortType.hot;
-          mode.value = Mode.MAIN_LIST_HOT;
-          break;
-        case ReplySortType.hot:
-          sortType.value = ReplySortType.time;
-          mode.value = Mode.MAIN_LIST_TIME;
-          break;
-      }
-      onReload();
-    });
+    if (isLoading) return;
+    feedBack();
+    switch (sortType.value) {
+      case ReplySortType.time:
+        sortType.value = ReplySortType.hot;
+        mode.value = Mode.MAIN_LIST_HOT;
+        break;
+      case ReplySortType.hot:
+        sortType.value = ReplySortType.time;
+        mode.value = Mode.MAIN_LIST_TIME;
+        break;
+    }
+    onReload();
   }
 
-  (bool inputDisable, String? hint) get replyHint {
+  (bool inputDisable, bool canUploadPic, String? hint) get replyHint {
     bool inputDisable = false;
+    bool canUploadPic =
+        subjectControl?.uploadPictureIconState !=
+        EditorIconState.EditorIconState_DISABLE;
     String? hint;
     try {
       if (subjectControl != null && subjectControl!.hasRootText()) {
@@ -121,7 +119,7 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
         }
       }
     } catch (_) {}
-    return (inputDisable, hint);
+    return (inputDisable, canUploadPic, hint);
   }
 
   void onReply(
@@ -140,7 +138,7 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
 
     assert(replyItem != null || (oid != null && replyType != null));
 
-    final (bool inputDisable, String? hint) = replyHint;
+    final (bool inputDisable, bool canUploadPic, String? hint) = replyHint;
     if (inputDisable) {
       return;
     }
@@ -158,6 +156,7 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
                 replyType: replyItem?.type.toInt() ?? replyType!,
                 replyItem: replyItem,
                 items: savedReplies[key],
+                canUploadPic: canUploadPic,
                 onSave: (reply) {
                   if (reply.isEmpty) {
                     savedReplies.remove(key);

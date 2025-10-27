@@ -58,14 +58,42 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
           },
           child: Scaffold(
             resizeToAvoidBottomInset: false,
-            floatingActionButton: Obx(
-              () => _favDetailController.folderInfo.value.mediaCount > 0
-                  ? FloatingActionButton.extended(
-                      onPressed: _favDetailController.toViewPlayAll,
-                      label: const Text('播放全部'),
-                      icon: const Icon(Icons.playlist_play),
-                    )
-                  : const SizedBox.shrink(),
+            floatingActionButtonLocation: const CustomFabLocation(),
+            floatingActionButton: Padding(
+              padding: const EdgeInsets.only(
+                right: kFloatingActionButtonMargin,
+              ),
+              child: Obx(
+                () => _favDetailController.folderInfo.value.mediaCount > 0
+                    ? AnimatedSlide(
+                        offset: _favDetailController.isPlayAll.value
+                            ? Offset.zero
+                            : const Offset(0.75, 0),
+                        duration: const Duration(milliseconds: 120),
+                        child: GestureDetector(
+                          onHorizontalDragDown: (details) =>
+                              _favDetailController.dx =
+                                  details.localPosition.dx,
+                          onHorizontalDragStart: (details) =>
+                              _favDetailController.setIsPlayAll(
+                                details.localPosition.dx <
+                                    _favDetailController.dx,
+                              ),
+                          child: FloatingActionButton.extended(
+                            onPressed: () {
+                              if (_favDetailController.isPlayAll.value) {
+                                _favDetailController.toViewPlayAll();
+                              } else {
+                                _favDetailController.setIsPlayAll(true);
+                              }
+                            },
+                            label: const Text('播放全部'),
+                            icon: const Icon(Icons.playlist_play),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
             body: refreshIndicator(
               onRefresh: _favDetailController.onRefresh,
@@ -371,24 +399,25 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
                         right: 6,
                         top: 6,
                         child: Obx(() {
-                          if (_favDetailController.isOwner) {
+                          if (_favDetailController.isOwner ||
+                              _favDetailController.loadingState.value
+                                  is! Success) {
                             return const SizedBox.shrink();
                           }
                           bool isFav = folderInfo.favState == 1;
                           return iconButton(
-                            context: context,
                             size: 28,
                             iconSize: 18,
                             tooltip: '${isFav ? '取消' : ''}收藏',
                             onPressed: () => _favDetailController.onFav(isFav),
                             icon: isFav
-                                ? Icons.favorite
-                                : Icons.favorite_border,
+                                ? const Icon(Icons.favorite)
+                                : const Icon(Icons.favorite_border),
                             bgColor: isFav
-                                ? null
+                                ? theme.colorScheme.secondaryContainer
                                 : theme.colorScheme.onInverseSurface,
                             iconColor: isFav
-                                ? null
+                                ? theme.colorScheme.onSecondaryContainer
                                 : theme.colorScheme.onSurfaceVariant,
                           );
                         }),
@@ -490,5 +519,20 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
         onReload: _favDetailController.onReload,
       ),
     };
+  }
+}
+
+class CustomFabLocation extends StandardFabLocation with FabFloatOffsetY {
+  const CustomFabLocation();
+
+  @override
+  double getOffsetX(
+    ScaffoldPrelayoutGeometry scaffoldGeometry,
+    double adjustment,
+  ) {
+    return scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.minInsets.right -
+        scaffoldGeometry.floatingActionButtonSize.width +
+        adjustment;
   }
 }

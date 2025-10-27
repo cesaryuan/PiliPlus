@@ -4,123 +4,82 @@ import 'dart:io';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:path_provider/path_provider.dart';
 
 abstract class CacheManage {
   // 获取缓存目录
-  static Future<int> loadApplicationCache() async {
-    /// clear all of image in memory
-    // clearMemoryImageCache();
-    /// get ImageCache
-    // var res = getMemoryImageCache();
-
-    // 缓存大小
-    // cached_network_image directory
-    Directory tempDirectory = await getTemporaryDirectory();
-    if (Utils.isDesktop) {
-      final dir = Directory('${tempDirectory.path}/libCachedImageData');
-      if (dir.existsSync()) {
-        return await getTotalSizeOfFilesInDir(dir);
-      } else {
-        return 0;
+  static Future<int> loadApplicationCache([
+    final num maxSize = double.infinity,
+  ]) async {
+    try {
+      Directory tempDirectory = await getTemporaryDirectory();
+      if (Utils.isDesktop) {
+        final dir = Directory('${tempDirectory.path}/libCachedImageData');
+        if (dir.existsSync()) {
+          return await getTotalSizeOfFilesInDir(dir, maxSize);
+        } else {
+          return 0;
+        }
       }
-    }
-    // get_storage directory
-    Directory docDirectory = await getApplicationDocumentsDirectory();
 
-    int cacheSize = 0;
-    // 获取缓存大小
-    if (tempDirectory.existsSync()) {
-      cacheSize += await getTotalSizeOfFilesInDir(tempDirectory);
-    }
-
-    /// 获取缓存大小 dioCache
-    if (docDirectory.existsSync()) {
-      String dioCacheFileName =
-          '${docDirectory.path}${Platform.pathSeparator}DioCache.db';
-      var dioCacheFile = File(dioCacheFileName);
-      if (dioCacheFile.existsSync()) {
-        cacheSize += await getTotalSizeOfFilesInDir(dioCacheFile);
+      if (tempDirectory.existsSync()) {
+        return await getTotalSizeOfFilesInDir(tempDirectory, maxSize);
       }
-    }
-
-    return cacheSize;
-  }
-
-  // 循环计算文件的大小（递归）
-  static Future<int> getTotalSizeOfFilesInDir(
-    final FileSystemEntity file,
-  ) async {
-    if (file is File) {
-      int length = await file.length();
-      return int.parse(length.toString());
-    }
-    if (file is Directory) {
-      final List<FileSystemEntity> children = file.listSync();
-      int total = 0;
-      for (final FileSystemEntity child in children) {
-        total += await getTotalSizeOfFilesInDir(child);
-      }
-      return total;
+    } catch (_) {
+      if (kDebugMode) rethrow;
     }
     return 0;
   }
 
+  // 循环计算文件的大小
+  static Future<int> getTotalSizeOfFilesInDir(
+    final Directory file, [
+    final num maxSize = double.infinity,
+  ]) async {
+    final children = file.list(recursive: true);
+    int total = 0;
+    await for (final child in children) {
+      if (child is File) {
+        total += await child.length();
+        if (total >= maxSize) break;
+      }
+    }
+    return total;
+  }
+
   // 缓存大小格式转换
   static String formatSize(num value) {
-    List<String> unitArr = const ['B', 'K', 'M', 'G', 'T', 'P'];
+    const unitArr = ['B', 'K', 'M', 'G', 'T', 'P'];
     int index = 0;
     while (value >= 1024) {
       index++;
       value = value / 1024;
     }
     String size = value.toStringAsFixed(2);
-    return size + unitArr.getOrElse(index, orElse: () => '');
-  }
-
-  /// 清除 Documents 目录下的 DioCache.db
-  static Future<void> clearApplicationCache() async {
-    Directory directory = await getApplicationDocumentsDirectory();
-    if (directory.existsSync()) {
-      String dioCacheFileName =
-          '${directory.path}${Platform.pathSeparator}DioCache.db';
-      var dioCacheFile = File(dioCacheFileName);
-      if (dioCacheFile.existsSync()) {
-        dioCacheFile.delete();
-      }
-    }
+    return size + (unitArr.getOrNull(index) ?? '');
   }
 
   // 清除 Library/Caches 目录及文件缓存
   static Future<void> clearLibraryCache() async {
-    var tempDirectory = await getTemporaryDirectory();
-    if (Utils.isDesktop) {
-      final dir = Directory('${tempDirectory.path}/libCachedImageData');
-      if (dir.existsSync()) {
-        await dir.delete(recursive: true);
+    try {
+      var tempDirectory = await getTemporaryDirectory();
+      if (Utils.isDesktop) {
+        final dir = Directory('${tempDirectory.path}/libCachedImageData');
+        if (dir.existsSync()) {
+          await dir.delete(recursive: true);
+        }
+        return;
       }
-      return;
-    }
-    if (tempDirectory.existsSync()) {
-      // await appDocDir.delete(recursive: true);
-      final List<FileSystemEntity> children = tempDirectory.listSync(
-        recursive: false,
-      );
-      for (final FileSystemEntity file in children) {
-        await file.delete(recursive: true);
+      if (tempDirectory.existsSync()) {
+        final children = tempDirectory.list(recursive: false);
+        await for (final file in children) {
+          await file.delete(recursive: true);
+        }
       }
+    } catch (_) {
+      if (kDebugMode) rethrow;
     }
-  }
-
-  /// 递归方式删除目录及文件
-  static Future<void> deleteDirectory(FileSystemEntity file) async {
-    if (file is Directory) {
-      final List<FileSystemEntity> children = file.listSync();
-      for (final FileSystemEntity child in children) {
-        await deleteDirectory(child);
-      }
-    }
-    await file.delete();
   }
 
   static Future<void> autoClearCache() async {
@@ -129,7 +88,7 @@ abstract class CacheManage {
     } else {
       final maxCacheSize = Pref.maxCacheSize;
       if (maxCacheSize != 0) {
-        final currCache = await loadApplicationCache();
+        final currCache = await loadApplicationCache(maxCacheSize);
         if (currCache >= maxCacheSize) {
           await clearLibraryCache();
         }

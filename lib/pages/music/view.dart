@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:PiliPlus/common/widgets/badge.dart';
@@ -164,14 +165,12 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                 child: Padding(
                   padding: EdgeInsets.only(right: padding),
                   child: Scaffold(
-                    key: scaffoldKey,
                     backgroundColor: Colors.transparent,
                     resizeToAvoidBottomInset: false,
                     body: refreshIndicator(
                       onRefresh: controller.onRefresh,
                       child: CustomScrollView(
-                        controller: controller
-                            .scrollController, // debug: The provided ScrollController is attached to more than one ScrollPosition.
+                        controller: scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           buildReplyHeader(theme),
@@ -242,7 +241,10 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(right: 14, bottom: 14),
+                    padding: const EdgeInsets.only(
+                      right: kFloatingActionButtonMargin,
+                      bottom: kFloatingActionButtonMargin,
+                    ),
                     child: replyButton,
                   ),
                   Container(
@@ -286,7 +288,7 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                         // ),
                         Expanded(
                           child: textIconButton(
-                            icon: CustomIcon.share_node,
+                            icon: CustomIcons.share_node,
                             text: '分享',
                             onPressed: () =>
                                 Utils.shareText(controller.shareUrl),
@@ -336,8 +338,8 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                 alignment: Alignment.bottomRight,
                 child: Padding(
                   padding: EdgeInsets.only(
-                    right: 14,
-                    bottom: padding.bottom + 14,
+                    right: kFloatingActionButtonMargin,
+                    bottom: padding.bottom + kFloatingActionButtonMargin,
                   ),
                   child: replyButton,
                 ),
@@ -449,10 +451,8 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         GestureDetector(
-                          // TODO: android intent ACTION_MEDIA_SEARCH
-                          onTap: () => Utils.copyText(
-                            item.musicTitle!,
-                          ),
+                          onTap: () => _searchMusic(item),
+                          onLongPress: () => Utils.copyText(item.musicTitle!),
                           behavior: HitTestBehavior.opaque,
                           child: MarqueeText(
                             item.musicTitle!,
@@ -494,13 +494,18 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                                   cid: item.mvCid!,
                                   aid: item.mvAid,
                                 ),
-                                child: ColoredBox(
-                                  color: theme.colorScheme.secondaryContainer
-                                      .withValues(alpha: 0.5),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.all(
+                                      Radius.circular(4),
+                                    ),
+                                    color: theme.colorScheme.secondaryContainer
+                                        .withValues(alpha: 0.5),
+                                  ),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 2,
-                                      horizontal: 3,
+                                      vertical: 3,
+                                      horizontal: 4,
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -676,5 +681,19 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _searchMusic(MusicDetail item) async {
+    final res =
+        Platform.isAndroid &&
+        (await Utils.channel.invokeMethod<bool>('music', {
+              'title': item.musicTitle,
+              'artist': item.originArtist ?? item.originArtistList,
+              'album': item.album,
+            }) ??
+            false);
+    if (!res) {
+      Utils.copyText(item.musicTitle!);
+    }
   }
 }

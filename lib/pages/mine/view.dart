@@ -22,7 +22,9 @@ import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class MinePage extends StatefulWidget {
-  const MinePage({super.key});
+  const MinePage({super.key, this.showBackBtn = false});
+
+  final bool showBackBtn;
 
   @override
   State<MinePage> createState() => _MediaPageState();
@@ -37,10 +39,21 @@ class _MediaPageState extends CommonPageState<MinePage, MineController>
   @override
   bool get wantKeepAlive => true;
 
+  bool get checkPage =>
+      _mainController.navigationBars[0] != NavigationBarType.mine &&
+      _mainController.selectedIndex.value == 0;
+
+  @override
+  bool onNotification(UserScrollNotification notification) {
+    if (checkPage) {
+      return false;
+    }
+    return super.onNotification(notification);
+  }
+
   @override
   void listener() {
-    if (_mainController.navigationBars[0] != NavigationBarType.mine &&
-        _mainController.selectedIndex.value == 0) {
+    if (checkPage) {
       return;
     }
     super.listener();
@@ -51,34 +64,36 @@ class _MediaPageState extends CommonPageState<MinePage, MineController>
     super.build(context);
     final theme = Theme.of(context);
     final secondary = theme.colorScheme.secondary;
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        _buildHeaderActions,
-        const SizedBox(height: 10),
-        Expanded(
-          child: Material(
-            type: MaterialType.transparency,
-            child: refreshIndicator(
-              onRefresh: controller.onRefresh,
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 100),
-                controller: controller.scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  _buildUserInfo(theme, secondary),
-                  _buildActions(secondary),
-                  Obx(
-                    () => controller.loadingState.value is Loading
-                        ? const SizedBox.shrink()
-                        : _buildFav(theme, secondary),
-                  ),
-                ],
+    return onBuild(
+      Column(
+        children: [
+          const SizedBox(height: 10),
+          _buildHeaderActions,
+          const SizedBox(height: 10),
+          Expanded(
+            child: Material(
+              type: MaterialType.transparency,
+              child: refreshIndicator(
+                onRefresh: controller.onRefresh,
+                child: ListView(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  controller: controller.scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    _buildUserInfo(theme, secondary),
+                    _buildActions(secondary),
+                    Obx(
+                      () => controller.loadingState.value is Loading
+                          ? const SizedBox.shrink()
+                          : _buildFav(theme, secondary),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -125,6 +140,16 @@ class _MediaPageState extends CommonPageState<MinePage, MineController>
       spacing: 5,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        if (widget.showBackBtn)
+          const Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: BackButton(),
+              ),
+            ),
+          ),
         if (!_mainController.hasHome) ...[
           IconButton(
             iconSize: 22,
@@ -227,6 +252,9 @@ class _MediaPageState extends CommonPageState<MinePage, MineController>
               Feedback.forLongPress(context);
               controller.onLogin(true);
             },
+            onSecondaryTap: Utils.isMobile
+                ? null
+                : () => controller.onLogin(true),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -485,12 +513,12 @@ class _MediaPageState extends CommonPageState<MinePage, MineController>
           return SizedBox(
             height: 200,
             child: ListView.separated(
-              padding: const EdgeInsets.only(left: 20, top: 12),
+              padding: const EdgeInsets.only(left: 20, top: 12, right: 20),
               itemCount: response.list.length + (flag ? 1 : 0),
               itemBuilder: (context, index) {
                 if (flag && index == favFolderList.length) {
                   return Padding(
-                    padding: const EdgeInsets.only(right: 14, bottom: 35),
+                    padding: const EdgeInsets.only(bottom: 35),
                     child: Center(
                       child: IconButton(
                         tooltip: '查看更多',

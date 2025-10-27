@@ -13,13 +13,15 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-class Utils {
+abstract class Utils {
   static final Random random = Random();
 
   static const channel = MethodChannel(Constants.appName);
 
+  @pragma("vm:platform-const")
   static final bool isMobile = Platform.isAndroid || Platform.isIOS;
 
+  @pragma("vm:platform-const")
   static final bool isDesktop =
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
@@ -61,12 +63,7 @@ class Utils {
   static Future<Rect?> get sharePositionOrigin async {
     if (await isIpad) {
       final size = Get.size;
-      return Rect.fromLTWH(
-        0,
-        0,
-        size.width,
-        size.height / 2,
-      );
+      return Rect.fromLTWH(0, 0, size.width, size.height / 2);
     }
     return null;
   }
@@ -78,10 +75,7 @@ class Utils {
     }
     try {
       await SharePlus.instance.share(
-        ShareParams(
-          text: text,
-          sharePositionOrigin: await sharePositionOrigin,
-        ),
+        ShareParams(text: text, sharePositionOrigin: await sharePositionOrigin),
       );
     } catch (e) {
       SmartDialog.showToast(e.toString());
@@ -113,15 +107,15 @@ class Utils {
     );
   }
 
-  static void copyText(
+  static Future<void> copyText(
     String text, {
     bool needToast = true,
     String? toastText,
   }) {
-    Clipboard.setData(ClipboardData(text: text));
     if (needToast) {
       SmartDialog.showToast(toastText ?? '已复制');
     }
+    return Clipboard.setData(ClipboardData(text: text));
   }
 
   static String makeHeroTag(v) {

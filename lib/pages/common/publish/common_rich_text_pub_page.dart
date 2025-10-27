@@ -62,8 +62,10 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
 
   @override
   void dispose() {
-    for (var i in pathList) {
-      File(i).tryDel();
+    if (Utils.isMobile) {
+      for (var i in pathList) {
+        File(i).tryDel();
+      }
     }
     super.dispose();
   }
@@ -106,6 +108,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
             controller.restoreChatPanel();
           },
           onLongPress: onClear,
+          onSecondaryTap: Utils.isMobile ? null : onClear,
           child: ClipRRect(
             borderRadius: const BorderRadius.all(Radius.circular(4)),
             child: Image(
@@ -121,8 +124,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
             top: 34,
             right: 5,
             child: iconButton(
-              context: context,
-              icon: Icons.edit,
+              icon: const Icon(Icons.edit),
               onPressed: () => onCropImage(index),
               size: 24,
               iconSize: 14,
@@ -133,8 +135,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
           top: 5,
           right: 5,
           child: iconButton(
-            context: context,
-            icon: Icons.clear,
+            icon: const Icon(Icons.clear),
             onPressed: onClear,
             size: 24,
             iconSize: 14,
@@ -146,18 +147,17 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
   }
 
   Future<void> onCropImage(int index) async {
-    final theme = Theme.of(context);
-    CroppedFile? croppedFile = await ImageCropper().cropImage(
+    late final colorScheme = ColorScheme.of(context);
+    CroppedFile? croppedFile = await ImageCropper.platform.cropImage(
       sourcePath: pathList[index],
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: '裁剪',
-          toolbarColor: theme.colorScheme.secondaryContainer,
-          toolbarWidgetColor: theme.colorScheme.onSecondaryContainer,
+          toolbarColor: colorScheme.secondaryContainer,
+          toolbarWidgetColor: colorScheme.onSecondaryContainer,
+          statusBarLight: colorScheme.isLight,
         ),
-        IOSUiSettings(
-          title: '裁剪',
-        ),
+        IOSUiSettings(title: '裁剪'),
       ],
     );
     if (croppedFile != null) {

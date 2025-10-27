@@ -3,9 +3,10 @@ import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flex_seed_scheme/flex_seed_scheme.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-class ThemeUtils {
+abstract class ThemeUtils {
   static ThemeData getThemeData({
     required ColorScheme colorScheme,
     required bool isDynamic,
@@ -109,6 +110,17 @@ class ThemeUtils {
         decoration: BoxDecoration(
           color: Colors.grey[700]!.withValues(alpha: 0.9),
           borderRadius: const BorderRadius.all(Radius.circular(4)),
+        ),
+      ),
+      cupertinoOverrideTheme: CupertinoThemeData(
+        selectionHandleColor: colorScheme.primary,
+      ),
+      switchTheme: const SwitchThemeData(
+        thumbIcon: WidgetStateProperty<Icon?>.fromMap(
+          <WidgetStatesConstraint, Icon?>{
+            WidgetState.selected: Icon(Icons.done),
+            WidgetState.any: null,
+          },
         ),
       ),
     );

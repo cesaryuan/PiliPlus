@@ -1,4 +1,3 @@
-import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
 import 'package:PiliPlus/common/widgets/page/tabs.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
@@ -6,15 +5,16 @@ import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
 import 'package:PiliPlus/models_new/video/video_tag/data.dart';
-import 'package:PiliPlus/pages/common/slide/common_collapse_slide_page.dart';
+import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/pgc_review/view.dart';
 import 'package:PiliPlus/pages/search/widgets/search_text.dart';
+import 'package:PiliPlus/pages/video/introduction/ugc/widgets/selectable_text.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart' hide TabBarView;
 import 'package:get/get.dart';
 
-class PgcIntroPanel extends CommonCollapseSlidePage {
+class PgcIntroPanel extends CommonSlidePage {
   final PgcInfoModel item;
   final List<VideoTagItem>? videoTags;
 
@@ -29,7 +29,8 @@ class PgcIntroPanel extends CommonCollapseSlidePage {
   State<PgcIntroPanel> createState() => _IntroDetailState();
 }
 
-class _IntroDetailState extends CommonCollapseSlidePageState<PgcIntroPanel> {
+class _IntroDetailState extends State<PgcIntroPanel>
+    with TickerProviderStateMixin, CommonSlideMixin {
   late final _tabController = TabController(length: 2, vsync: this);
   final _controller = ScrollController();
 
@@ -68,14 +69,12 @@ class _IntroDetailState extends CommonCollapseSlidePageState<PgcIntroPanel> {
               },
             ),
           ),
-          iconButton(
-            context: context,
-            icon: Icons.clear,
+          IconButton(
+            tooltip: '关闭',
+            icon: const Icon(Icons.close, size: 20),
             onPressed: Get.back,
-            iconSize: 22,
-            bgColor: Colors.transparent,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 2),
         ],
       ),
       children: [
@@ -107,7 +106,7 @@ class _IntroDetailState extends CommonCollapseSlidePageState<PgcIntroPanel> {
         bottom: MediaQuery.viewPaddingOf(context).bottom + 100,
       ),
       children: [
-        SelectableText(
+        selectableText(
           widget.item.title!,
           style: const TextStyle(fontSize: 16),
         ),
@@ -151,7 +150,7 @@ class _IntroDetailState extends CommonCollapseSlidePageState<PgcIntroPanel> {
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
-          SelectableText(
+          selectableText(
             widget.item.evaluate!,
             style: textStyle,
           ),

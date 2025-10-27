@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/widgets/button/more_btn.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
@@ -51,26 +52,28 @@ class _PgcPageState extends CommonPageState<PgcPage, PgcController>
   Widget build(BuildContext context) {
     super.build(context);
     final ThemeData theme = Theme.of(context);
-    return refreshIndicator(
-      onRefresh: controller.onRefresh,
-      child: CustomScrollView(
-        controller: controller.scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          _buildFollow(theme),
-          if (controller.showPgcTimeline)
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height:
-                    Grid.smallCardWidth / 2 / 0.75 +
-                    MediaQuery.textScalerOf(context).scale(96),
-                child: Obx(
-                  () => _buildTimeline(theme, controller.timelineState.value),
+    return onBuild(
+      refreshIndicator(
+        onRefresh: controller.onRefresh,
+        child: CustomScrollView(
+          controller: controller.scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            _buildFollow(theme),
+            if (controller.showPgcTimeline)
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height:
+                      Grid.smallCardWidth / 2 / 0.75 +
+                      MediaQuery.textScalerOf(context).scale(96),
+                  child: Obx(
+                    () => _buildTimeline(theme, controller.timelineState.value),
+                  ),
                 ),
               ),
-            ),
-          ..._buildRcmd(theme),
-        ],
+            ..._buildRcmd(theme),
+          ],
+        ),
       ),
     );
   }
@@ -229,8 +232,8 @@ class _PgcPageState extends CommonPageState<PgcPage, PgcController>
             '推荐',
             style: theme.textTheme.titleMedium,
           ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          moreTextButton(
+            padding: const EdgeInsets.symmetric(vertical: 2),
             onTap: () {
               if (widget.tabType == HomeTabType.bangumi) {
                 Get.to(const PgcIndexPage());
@@ -289,26 +292,7 @@ class _PgcPageState extends CommonPageState<PgcPage, PgcController>
                 );
               }
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '查看更多',
-                    strutStyle: const StrutStyle(leading: 0, height: 1),
-                    style: TextStyle(
-                      height: 1,
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ],
-              ),
-            ),
+            color: theme.colorScheme.secondary,
           ),
         ],
       ),
@@ -392,34 +376,16 @@ class _PgcPageState extends CommonPageState<PgcPage, PgcController>
           () => controller.accountService.isLogin.value
               ? Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  child: moreTextButton(
+                    text: '查看全部',
                     onTap: () => Get.toNamed(
                       '/fav',
                       arguments: widget.tabType == HomeTabType.bangumi
                           ? FavTabType.bangumi.index
                           : FavTabType.cinema.index,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '查看全部',
-                            strutStyle: const StrutStyle(leading: 0, height: 1),
-                            style: TextStyle(
-                              height: 1,
-                              color: theme.colorScheme.secondary,
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: theme.colorScheme.secondary,
-                          ),
-                        ],
-                      ),
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    color: theme.colorScheme.secondary,
                   ),
                 )
               : const SizedBox.shrink(),

@@ -10,6 +10,7 @@ import 'package:PiliPlus/models_new/space/space/images.dart';
 import 'package:PiliPlus/models_new/space/space/live.dart';
 import 'package:PiliPlus/models_new/space/space/pr_info.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/context_ext.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
@@ -43,7 +44,7 @@ class UserInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isLight = colorScheme.brightness.isLight;
+    final isLight = colorScheme.isLight;
     final isPortrait = context.width < 600;
     return ViewSafeArea(
       top: !isPortrait,
@@ -240,9 +241,9 @@ class UserInfoCard extends StatelessWidget {
     Padding(
       padding: const EdgeInsets.only(left: 20, top: 6, right: 20),
       child: Wrap(
-        spacing: 8,
+        spacing: 10,
         runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           GestureDetector(
             onTap: () => Utils.copyText(card.mid.toString()),
@@ -255,13 +256,23 @@ class UserInfoCard extends StatelessWidget {
             ),
           ),
           ...?card.spaceTag?.map(
-            (item) => Text(
-              item.title ?? '',
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.outline,
-              ),
-            ),
+            (item) {
+              final hasUri = item.uri?.isNotEmpty == true;
+              final child = Text(
+                item.title ?? '',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: hasUri ? colorScheme.secondary : colorScheme.outline,
+                ),
+              );
+              if (hasUri) {
+                return GestureDetector(
+                  onTap: () => PiliScheme.routePushFromUrl(item.uri!),
+                  child: child,
+                );
+              }
+              return child;
+            },
           ),
         ],
       ),
@@ -641,17 +652,9 @@ class UserInfoCard extends StatelessWidget {
         const SizedBox(width: 10),
       ],
     );
-    if (item.jumpUrl?.isNotEmpty == true) {
-      return GestureDetector(
-        onTap: () {
-          final isDark = Get.isDarkMode;
-          PageUtils.handleWebview(
-            '${item.jumpUrl}&native.theme=${isDark ? 2 : 1}&night=${isDark ? 1 : 0}',
-          );
-        },
-        child: child,
-      );
-    }
-    return child;
+    return GestureDetector(
+      onTap: () => Get.toNamed('/followed?mid=${card.mid}&name=${card.name}'),
+      child: child,
+    );
   }
 }

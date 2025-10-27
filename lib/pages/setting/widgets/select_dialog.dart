@@ -16,6 +16,7 @@ class SelectDialog<T> extends StatelessWidget {
   final String title;
   final List<(T, String)> values;
   final Widget Function(BuildContext, int)? subtitleBuilder;
+  final bool toggleable;
 
   const SelectDialog({
     super.key,
@@ -23,18 +24,22 @@ class SelectDialog<T> extends StatelessWidget {
     required this.values,
     required this.title,
     this.subtitleBuilder,
+    this.toggleable = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final titleMedium = Theme.of(context).textTheme.titleMedium!;
+    final titleMedium = TextTheme.of(context).titleMedium!;
     return AlertDialog(
       clipBehavior: Clip.hardEdge,
       title: Text(title),
+      constraints: subtitleBuilder != null
+          ? const BoxConstraints(maxWidth: 320, minWidth: 320)
+          : null,
       contentPadding: const EdgeInsets.symmetric(vertical: 12),
       content: SingleChildScrollView(
         child: RadioGroup<T>(
-          onChanged: Navigator.of(context).pop,
+          onChanged: (v) => Navigator.of(context).pop(v ?? value),
           groupValue: value,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -43,6 +48,7 @@ class SelectDialog<T> extends StatelessWidget {
               (index) {
                 final item = values[index];
                 return RadioListTile<T>(
+                  toggleable: toggleable,
                   dense: true,
                   value: item.$1,
                   title: Text(

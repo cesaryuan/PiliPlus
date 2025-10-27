@@ -5,6 +5,7 @@ import 'package:PiliPlus/pages/dynamics/widgets/action_panel.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/author_panel.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/dyn_content.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart' hide InkWell;
 
 class DynamicPanel extends StatelessWidget {
@@ -12,7 +13,6 @@ class DynamicPanel extends StatelessWidget {
   final double maxWidth;
   final bool isDetail;
   final ValueChanged? onRemove;
-  final Function(List<String>, int)? callback;
   final bool isSave;
   final Function(bool isTop, dynamic dynId)? onSetTop;
   final VoidCallback? onBlock;
@@ -25,7 +25,6 @@ class DynamicPanel extends StatelessWidget {
     required this.maxWidth,
     this.isDetail = false,
     this.onRemove,
-    this.callback,
     this.isSave = false,
     this.onSetTop,
     this.onBlock,
@@ -47,6 +46,9 @@ class DynamicPanel extends StatelessWidget {
       onSetTop: onSetTop,
       onBlock: onBlock,
     );
+
+    void showMore() => _imageSaveDialog(context, authorWidget.morePanel);
+
     final child = Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -64,7 +66,8 @@ class DynamicPanel extends StatelessWidget {
                 }.contains(item.type)
             ? null
             : () => PageUtils.pushDynDetail(item),
-        onLongPress: () => _imageSaveDialog(context, authorWidget.morePanel),
+        onLongPress: showMore,
+        onSecondaryTap: Utils.isMobile ? null : showMore,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +83,6 @@ class DynamicPanel extends StatelessWidget {
               isDetail: isDetail,
               item: item,
               floor: 1,
-              callback: callback,
               maxWidth: maxWidth,
             ),
             const SizedBox(height: 2),
@@ -160,30 +162,49 @@ class DynamicPanel extends StatelessWidget {
     late final major = item.modules.moduleDynamic?.major;
     switch (item.type) {
       case 'DYNAMIC_TYPE_AV':
-        title = major?.archive?.title;
-        cover = major?.archive?.cover;
-        bvid = major?.archive?.bvid;
+        if (major?.archive case final archive?) {
+          title = archive.title;
+          cover = archive.cover;
+          bvid = archive.bvid;
+        }
         break;
       case 'DYNAMIC_TYPE_UGC_SEASON':
-        title = major?.ugcSeason?.title;
-        cover = major?.ugcSeason?.cover;
-        bvid = major?.ugcSeason?.bvid;
+        if (major?.ugcSeason case final ugcSeason?) {
+          title = ugcSeason.title;
+          cover = ugcSeason.cover;
+          bvid = ugcSeason.bvid;
+        }
         break;
       case 'DYNAMIC_TYPE_PGC' || 'DYNAMIC_TYPE_PGC_UNION':
-        title = major?.pgc?.title;
-        cover = major?.pgc?.cover;
+        if (major?.pgc case final pgc?) {
+          title = pgc.title;
+          cover = pgc.cover;
+        }
         break;
       case 'DYNAMIC_TYPE_LIVE_RCMD':
-        title = major?.liveRcmd?.title;
-        cover = major?.liveRcmd?.cover;
+        if (major?.liveRcmd case final liveRcmd?) {
+          title = liveRcmd.title;
+          cover = liveRcmd.cover;
+        }
         break;
       case 'DYNAMIC_TYPE_LIVE':
-        title = major?.live?.title;
-        cover = major?.live?.cover;
+        if (major?.live case final live?) {
+          title = live.title;
+          cover = live.cover;
+        }
         break;
       case 'DYNAMIC_TYPE_COURSES_SEASON':
-        title = major?.courses?.title;
-        cover = major?.courses?.cover;
+        if (major?.courses case final courses?) {
+          title = courses.title;
+          cover = courses.cover;
+        }
+        break;
+      case 'DYNAMIC_TYPE_SUBSCRIPTION_NEW':
+        if (major?.subscriptionNew?.liveRcmd?.content?.livePlayInfo
+            case final livePlayInfo?) {
+          title = livePlayInfo.title;
+          cover = livePlayInfo.cover;
+        }
         break;
       default:
         morePanel(context);

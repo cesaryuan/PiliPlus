@@ -42,9 +42,11 @@ class _EmotePanelState extends State<EmotePanel>
     ThemeData theme,
     LoadingState<List<Package>?> loadingState,
   ) {
-    late final color = Get.currentRoute.startsWith('/whisperDetail')
-        ? theme.colorScheme.surface
-        : theme.colorScheme.onInverseSurface;
+    late final color = ElevationOverlay.colorWithOverlay(
+      theme.colorScheme.surface,
+      theme.hoverColor,
+      Get.currentRoute.startsWith('/whisperDetail') ? 8 : 2,
+    );
     return switch (loadingState) {
       Loading() => loadingWidget,
       Success(:var response) =>
@@ -173,8 +175,6 @@ class _EmotePanelState extends State<EmotePanel>
                           iconSize: 20,
                           iconColor: theme.colorScheme.onSurfaceVariant
                               .withValues(alpha: 0.8),
-                          bgColor: Colors.transparent,
-                          context: context,
                           onPressed: () {
                             final isDark = Get.isDarkMode;
                             Get.toNamed(
@@ -185,7 +185,7 @@ class _EmotePanelState extends State<EmotePanel>
                               },
                             );
                           },
-                          icon: Icons.settings,
+                          icon: const Icon(Icons.settings),
                         ),
                       ),
                       Expanded(

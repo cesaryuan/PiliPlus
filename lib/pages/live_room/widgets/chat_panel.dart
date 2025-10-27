@@ -87,7 +87,7 @@ class LiveRoomChatPanel extends StatelessWidget {
                 liveRoomController.superChatMsg.insert(
                   0,
                   SuperChatItem.fromJson({
-                    "id": Utils.generateRandomString(8),
+                    "id": Utils.random.nextInt(2147483647),
                     "price": 66,
                     "end_time":
                         DateTime.now().millisecondsSinceEpoch ~/ 1000 + 5,
@@ -140,7 +140,7 @@ class LiveRoomChatPanel extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
                     child: Text.rich(
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white, height: 1),
                       strutStyle: const StrutStyle(height: 1, leading: 0),
                       TextSpan(
                         children: [

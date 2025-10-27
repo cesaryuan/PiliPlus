@@ -13,6 +13,7 @@ import 'package:PiliPlus/models_new/later/list.dart';
 import 'package:PiliPlus/pages/later/controller.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
@@ -41,14 +42,18 @@ class VideoCardHLater extends StatelessWidget {
     }
     final theme = Theme.of(context);
     final enableMultiSelect = ctr.enableMultiSelect.value;
+
+    final onLongPress = enableMultiSelect
+        ? null
+        : () => ctr
+            ..enableMultiSelect.value = true
+            ..onSelect(videoItem);
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
-        onLongPress: enableMultiSelect
-            ? null
-            : () => ctr
-                ..enableMultiSelect.value = true
-                ..onSelect(videoItem),
+        onLongPress: onLongPress,
+        onSecondaryTap: Utils.isMobile ? null : onLongPress,
         onTap: enableMultiSelect
             ? () => ctr.onSelect(videoItem)
             : () async {
@@ -253,11 +258,9 @@ class VideoCardHLater extends StatelessWidget {
             bottom: -8,
             child: iconButton(
               tooltip: '移除',
-              context: context,
               onPressed: () => ctr.toViewDel(context, index, videoItem.aid),
-              icon: Icons.clear,
+              icon: const Icon(Icons.clear),
               iconColor: theme.colorScheme.outline,
-              bgColor: Colors.transparent,
             ),
           ),
         ],

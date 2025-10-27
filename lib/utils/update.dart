@@ -6,6 +6,7 @@ import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/ua_type.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
+import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -15,7 +16,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
-class Update {
+abstract class Update {
   // 检查更新
   static Future<void> checkUpdate([bool isAuto = true]) async {
     if (kDebugMode) return;
@@ -25,7 +26,7 @@ class Update {
         Api.latestApp,
         options: Options(
           headers: {'user-agent': UaType.mob.ua},
-          extra: {'account': NoAccount()},
+          extra: {'account': const NoAccount()},
         ),
       );
       if (res.data is Map || res.data.isEmpty) {
@@ -46,6 +47,10 @@ class Update {
           animationType: SmartAnimationType.centerFade_otherSlide,
           builder: (context) {
             final ThemeData theme = Theme.of(context);
+            Widget downloadBtn(String text, {String? ext}) => TextButton(
+              onPressed: () => onDownload(res.data[0], ext: ext),
+              child: Text(text),
+            );
             return AlertDialog(
               title: const Text('🎉 发现新版本 '),
               content: SizedBox(
@@ -76,18 +81,19 @@ class Update {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () {
-                    SmartDialog.dismiss();
-                    GStorage.setting.put(SettingBoxKey.autoUpdate, false);
-                  },
-                  child: Text(
-                    '不再提醒',
-                    style: TextStyle(
-                      color: theme.colorScheme.outline,
+                if (isAuto)
+                  TextButton(
+                    onPressed: () {
+                      SmartDialog.dismiss();
+                      GStorage.setting.put(SettingBoxKey.autoUpdate, false);
+                    },
+                    child: Text(
+                      '不再提醒',
+                      style: TextStyle(
+                        color: theme.colorScheme.outline,
+                      ),
                     ),
                   ),
-                ),
                 TextButton(
                   onPressed: SmartDialog.dismiss,
                   child: Text(
@@ -97,10 +103,15 @@ class Update {
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => onDownload(res.data[0]),
-                  child: const Text('Github'),
-                ),
+                if (Platform.isWindows) ...[
+                  downloadBtn('zip', ext: 'zip'),
+                  downloadBtn('exe', ext: 'exe'),
+                ] else if (Platform.isLinux) ...[
+                  downloadBtn('rpm', ext: 'rpm'),
+                  downloadBtn('deb', ext: 'deb'),
+                  downloadBtn('targz', ext: 'tar.gz'),
+                ] else
+                  downloadBtn('Github'),
               ],
             );
           },
@@ -112,17 +123,20 @@ class Update {
   }
 
   // 下载适用于当前系统的安装包
-  static Future<void> onDownload(data) async {
+  static Future<void> onDownload(Map data, {String? ext}) async {
     SmartDialog.dismiss();
     try {
-      void download(plat) {
+      void download(String plat) {
         if (data['assets'].isNotEmpty) {
-          for (dynamic i in data['assets']) {
-            if (i['name'].contains(plat)) {
+          for (Map<String, dynamic> i in data['assets']) {
+            final String name = i['name'];
+            if (name.contains(plat) &&
+                (ext.isNullOrEmpty ? true : name.endsWith(ext!))) {
               PageUtils.launchURL(i['browser_download_url']);
-              break;
+              return;
             }
           }
+          throw UnsupportedError('platform not found: $plat');
         }
       }
 
@@ -132,9 +146,10 @@ class Update {
         // [arm64-v8a]
         download(androidInfo.supportedAbis.first);
       } else {
-        download('ios');
+        download(Platform.operatingSystem);
       }
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('download error: $e');
       PageUtils.launchURL('${Constants.sourceCodeUrl}/releases/latest');
     }
   }

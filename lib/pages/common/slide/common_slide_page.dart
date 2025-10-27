@@ -11,15 +11,13 @@ abstract class CommonSlidePage extends StatefulWidget {
   final bool enableSlide;
 }
 
-abstract class CommonSlidePageState<T extends CommonSlidePage> extends State<T>
-    with TickerProviderStateMixin {
+mixin CommonSlideMixin<T extends CommonSlidePage> on State<T>, TickerProvider {
   Offset? downPos;
   bool? isSliding;
   late double maxWidth;
   late bool _isRTL = false;
   late final bool enableSlide;
   AnimationController? _animController;
-  Animation<Offset>? _anim;
 
   static bool slideDismissReplyPage = Pref.slideDismissReplyPage;
 
@@ -32,10 +30,6 @@ abstract class CommonSlidePageState<T extends CommonSlidePage> extends State<T>
         vsync: this,
         reverseDuration: const Duration(milliseconds: 500),
       );
-      _anim = Tween<Offset>(
-        begin: Offset.zero,
-        end: const Offset(0, 1),
-      ).animate(_animController!);
     }
   }
 
@@ -52,8 +46,15 @@ abstract class CommonSlidePageState<T extends CommonSlidePage> extends State<T>
         ? LayoutBuilder(
             builder: (context, constraints) {
               maxWidth = constraints.maxWidth;
-              return SlideTransition(
-                position: _anim!,
+              return AnimatedBuilder(
+                animation: _animController!,
+                builder: (context, child) {
+                  return Align(
+                    alignment: AlignmentDirectional.topStart,
+                    heightFactor: 1 - _animController!.value,
+                    child: child,
+                  );
+                },
                 child: buildPage(theme),
               );
             },

@@ -34,24 +34,23 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart' hide ContextExtensionss;
 import 'package:url_launcher/url_launcher.dart';
 
-class PageUtils {
+abstract class PageUtils {
   static final RouteObserver<PageRoute> routeObserver =
       RouteObserver<PageRoute>();
 
   static Future<void> imageView({
     int initialPage = 0,
     required List<SourceModel> imgList,
-    ValueChanged<int>? onDismissed,
     int? quality,
   }) {
-    return Navigator.of(Get.context!).push(
+    return Get.key.currentState!.push<void>(
       HeroDialogRoute(
-        builder: (context) => InteractiveviewerGallery(
-          sources: imgList,
-          initIndex: initialPage,
-          onDismissed: onDismissed,
-          quality: quality ?? GlobalData().imgQuality,
-        ),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            InteractiveviewerGallery(
+              sources: imgList,
+              initIndex: initialPage,
+              quality: quality ?? GlobalData().imgQuality,
+            ),
       ),
     );
   }
@@ -226,17 +225,6 @@ class PageUtils {
                               alignment: Alignment.centerRight,
                               scale: 0.8,
                               child: Switch(
-                                thumbIcon:
-                                    WidgetStateProperty.resolveWith<Icon?>((
-                                      Set<WidgetState> states,
-                                    ) {
-                                      if (states.isNotEmpty &&
-                                          states.first ==
-                                              WidgetState.selected) {
-                                        return const Icon(Icons.done);
-                                      }
-                                      return null;
-                                    }),
                                 value: shutdownTimerService
                                     .waitForPlayingCompleted,
                                 onChanged: (value) {
@@ -325,7 +313,7 @@ class PageUtils {
 
   static void showFavBottomSheet({
     required BuildContext context,
-    required CommonIntroController ctr,
+    required FavMixin ctr,
   }) {
     showModalBottomSheet(
       context: context,
@@ -361,20 +349,21 @@ class PageUtils {
     );
   }
 
-  static void enterPip({int? width, int? height}) {
+  static void enterPip({int? width, int? height, bool isAuto = false}) {
     if (width != null && height != null) {
       Rational aspectRatio = Rational(width, height);
+      aspectRatio = aspectRatio.fitsInAndroidRequirements
+          ? aspectRatio
+          : height > width
+          ? const Rational.vertical()
+          : const Rational.landscape();
       Floating().enable(
-        EnableManual(
-          aspectRatio: aspectRatio.fitsInAndroidRequirements
-              ? aspectRatio
-              : height > width
-              ? const Rational.vertical()
-              : const Rational.landscape(),
-        ),
+        isAuto
+            ? AutoEnable(aspectRatio: aspectRatio)
+            : EnableManual(aspectRatio: aspectRatio),
       );
     } else {
-      Floating().enable(const EnableManual());
+      Floating().enable(isAuto ? const AutoEnable() : const EnableManual());
     }
   }
 
@@ -473,6 +462,11 @@ class PageUtils {
         SmartDialog.showToast('暂未支持的类型，请联系开发者');
         break;
 
+      case 'DYNAMIC_TYPE_LIVE':
+        DynamicLive2Model liveRcmd = item.modules.moduleDynamic!.major!.live!;
+        toLiveRoom(liveRcmd.id);
+        break;
+
       case 'DYNAMIC_TYPE_LIVE_RCMD':
         DynamicLiveModel liveRcmd =
             item.modules.moduleDynamic!.major!.liveRcmd!;
@@ -558,44 +552,30 @@ class PageUtils {
     }
   }
 
-  static void onHorizontalPreview(
-    GlobalKey<ScaffoldState> key,
-    TickerProvider vsync,
-    List<String> imgList,
+  static void onHorizontalPreviewState(
+    ScaffoldState state,
+    List<SourceModel> imgList,
     int index,
   ) {
-    final ctr = AnimationController(
-      vsync: vsync,
-      duration: const Duration(milliseconds: 200),
+    final animController = AnimationController(
+      vsync: state,
+      duration: Duration.zero,
+      reverseDuration: Duration.zero,
     )..forward();
-    key.currentState?.showBottomSheet(
+    state.showBottomSheet(
       constraints: const BoxConstraints(),
       (context) {
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(ctr),
-          child: InteractiveviewerGallery(
-            sources: imgList.map((url) => SourceModel(url: url)).toList(),
-            initIndex: index,
-            onClose: (value) async {
-              if (!value) {
-                try {
-                  await ctr.reverse();
-                } catch (_) {}
-              }
-              try {
-                ctr.dispose();
-              } catch (_) {}
-              if (!value) {
-                Get.back();
-              }
-            },
-            quality: GlobalData().imgQuality,
-          ),
+        return InteractiveviewerGallery(
+          sources: imgList,
+          initIndex: index,
+          quality: GlobalData().imgQuality,
+          onClose: animController.dispose,
         );
       },
       enableDrag: false,
-      elevation: 0,
+      elevation: 0.0,
       backgroundColor: Colors.transparent,
+      transitionAnimationController: animController,
       sheetAnimationStyle: const AnimationStyle(duration: Duration.zero),
     );
   }
@@ -623,13 +603,13 @@ class PageUtils {
     }
   }
 
-  static Future<void> launchURL(String url) async {
+  static Future<void> launchURL(
+    String url, {
+    LaunchMode mode = LaunchMode.externalApplication,
+  }) async {
     try {
       final Uri uri = Uri.parse(url);
-      if (!await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      )) {
+      if (!await launchUrl(uri, mode: mode)) {
         SmartDialog.showToast('Could not launch $url');
       }
     } catch (e) {

@@ -20,8 +20,8 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.1.4+1
 
 environment:
-  sdk: ">=3.8.0 <4.0.0"
-  flutter: 3.35.3
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: 3.35.7 # update `.fvmrc` config
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -38,7 +38,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   # 动态取色
-  dynamic_color: ^1.7.0
+  dynamic_color: ^1.8.1
 
   get: ^4.6.6
 
@@ -63,7 +63,7 @@ dependencies:
   hive_flutter: ^1.1.0
 
   # 设备信息
-  device_info_plus: ^11.2.0
+  device_info_plus: ^12.1.0
   # 权限
   # permission_handler: ^12.0.0+1
   permission_handler_apple: ^9.4.7
@@ -75,12 +75,7 @@ dependencies:
   # webview_cookie_manager: ^2.0.6
   # 浏览器
   # webview_flutter: ^4.10.0
-  # flutter_inappwebview: ^6.1.5
-  flutter_inappwebview:
-    git:
-      url: https://github.com/bggRGjQaUbCoE/flutter_inappwebview.git
-      path: flutter_inappwebview
-      ref: version_6.1.5
+  flutter_inappwebview: ^6.1.5
   # 解决sliver滑动不同步
   # extended_nested_scroll_view: ^6.2.1
   extended_nested_scroll_view:
@@ -129,16 +124,16 @@ dependencies:
     git:
       url: https://github.com/bggRGjQaUbCoE/auto_orientation.git
       ref: master
-  protobuf: ^4.0.0
-  animations: ^2.0.11
+  protobuf: ^5.0.0
+  # animations: ^2.0.11
 
   # 获取appx信息
-  package_info_plus: ^8.1.1
+  package_info_plus: ^9.0.0
   url_launcher: ^6.3.1
   # 防抖节流
   easy_debounce: ^2.0.3
   # 高帧率
-  flutter_displaymode: ^0.6.0
+  flutter_displaymode: ^0.7.0
   # scheme跳转
   app_links: ^6.3.2
   # 弹幕
@@ -167,7 +162,7 @@ dependencies:
   # 极验
   gt3_flutter_plugin: ^0.1.0
   uuid: ^4.5.1
-  scrollable_positioned_list: ^0.3.8
+  # scrollable_positioned_list: ^0.3.8
   # nil: ^1.1.1
   catcher_2: ^2.1.0
   logger: ^2.5.0
@@ -187,7 +182,7 @@ dependencies:
   intl: ^0.20.2
   archive: ^4.0.0
   flutter_svg: ^2.0.14
-  image_cropper: ^9.1.0
+  image_cropper: ^11.0.0
   #解压直播消息
   brotli: ^0.6.0
   expandable: ^5.0.1
@@ -202,7 +197,6 @@ dependencies:
       url: https://github.com/wgh136/webdav_client.git
       ref: main
   re_highlight: ^0.0.3
-  cached_network_svg_image: ^1.2.0
   flutter_sortable_wrap:
     git:
       url: https://github.com/bggRGjQaUbCoE/flutter_sortable_wrap.git
@@ -210,7 +204,12 @@ dependencies:
   crclib: ^3.0.0
   web_socket_channel: ^3.0.3
   image: ^4.5.4
-  window_manager: ^0.5.1
+  # window_manager: ^0.5.1
+  window_manager:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/window_manager.git
+      path: packages/window_manager
+      ref: main
   tray_manager: ^0.5.1
   file_picker: ^10.3.3
   super_sliver_list:
@@ -224,12 +223,12 @@ dependencies:
   stream_transform: any
   screen_brightness_platform_interface: any
   mime: any
-  universal_platform: any
   path: any
   collection: any
   material_color_utilities: any
   flutter_cache_manager: any
   http2: any
+  screen_retriever: any
 
 dependency_overrides:
   # screen_brightness: ^2.1.
@@ -239,15 +238,37 @@ dependency_overrides:
   path: ^1.9.1
   mime: ^2.0.0
   rxdart: ^0.28.0
-  media_kit: 1.1.11
-  media_kit_libs_video: 1.0.5
-  media_kit_native_event_loop: ^1.0.9
-  font_awesome_flutter: 10.9.0
+  media_kit:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      path: media_kit
+      ref: version_1.2.5
+  media_kit_video:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      path: media_kit_video
+      ref: version_1.2.5
+  media_kit_libs_video:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      path: libs/universal/media_kit_libs_video
+      ref: version_1.2.5
+  media_kit_native_event_loop:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      path: media_kit_native_event_loop
+      ref: version_1.2.5
   media_kit_libs_android_video:
     git:
-      url: https://github.com/My-Responsitories/media-kit.git
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
       path: libs/android/media_kit_libs_android_video
       ref: version_1.2.5
+  media_kit_libs_windows_video:
+    git:
+      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      path: libs/windows/media_kit_libs_windows_video
+      ref: version_1.2.5
+  font_awesome_flutter: 10.9.0
 
 dev_dependencies:
   flutter_test:
@@ -259,10 +280,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.14.1
-  hive_generator: ^2.0.1
-  build_runner: ^2.4.13
-  flutter_native_splash: ^2.4.3
+  flutter_launcher_icons: ^0.14.4
+  # hive_generator: ^2.0.1
+  build_runner: ^2.9.0
+  flutter_native_splash: ^2.4.6
 
 flutter_launcher_icons:
   android: true

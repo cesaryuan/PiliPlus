@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/http/danmaku.dart';
+import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/publish_panel_type.dart';
 import 'package:PiliPlus/pages/common/publish/common_text_pub_page.dart';
+import 'package:PiliPlus/pages/danmaku/dnamaku_model.dart';
 import 'package:PiliPlus/pages/setting/slide_color_picker.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:canvas_danmaku/models/danmaku_content_item.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +23,7 @@ class SendDanmakuPanel extends CommonTextPubPage {
   final dynamic bvid;
   final dynamic progress;
 
-  final ValueChanged<DanmakuContentItem> callback;
+  final ValueChanged<DanmakuContentItem<DanmakuExtra>> callback;
   final bool darkVideoPage;
 
   // config
@@ -332,16 +335,14 @@ class _SendDanmakuPanelState extends CommonTextPubPageState<SendDanmakuPanel> {
             () {
               final isEmoji = panelType.value == PanelType.emoji;
               return iconButton(
-                context: context,
                 tooltip: '弹幕样式',
                 onPressed: () {
                   updatePanelType(
                     isEmoji ? PanelType.keyboard : PanelType.emoji,
                   );
                 },
-                bgColor: Colors.transparent,
                 iconSize: 24,
-                icon: Icons.text_format,
+                icon: const Icon(Icons.text_format),
                 iconColor: isEmoji
                     ? themeData.colorScheme.primary
                     : themeData.colorScheme.onSurfaceVariant,
@@ -391,30 +392,26 @@ class _SendDanmakuPanelState extends CommonTextPubPageState<SendDanmakuPanel> {
           Obx(
             () => enablePublish.value
                 ? iconButton(
-                    context: context,
-                    bgColor: Colors.transparent,
                     iconSize: 22,
                     iconColor: themeData.colorScheme.onSurfaceVariant,
                     onPressed: () {
                       editController.clear();
                       enablePublish.value = false;
                     },
-                    icon: Icons.clear,
+                    icon: const Icon(Icons.clear),
                   )
                 : const SizedBox.shrink(),
           ),
           const SizedBox(width: 12),
           Obx(
             () => iconButton(
-              context: context,
               tooltip: '发送',
-              bgColor: Colors.transparent,
               iconSize: 22,
               iconColor: enablePublish.value
                   ? themeData.colorScheme.primary
                   : themeData.colorScheme.outline,
               onPressed: enablePublish.value ? onPublish : null,
-              icon: Icons.send,
+              icon: const Icon(Icons.send),
             ),
           ),
         ],
@@ -458,10 +455,17 @@ class _SendDanmakuPanelState extends CommonTextPubPageState<SendDanmakuPanel> {
       colorful: isColorful,
     );
     SmartDialog.dismiss();
-    if (res['status']) {
+    if (res case Success(:final response)) {
       hasPub = true;
       Get.back();
       SmartDialog.showToast('发送成功');
+      VideoDanmaku? extra;
+      if (response.dmid case final dmid?) {
+        extra = VideoDanmaku(
+          id: dmid,
+          mid: PlPlayerController.instance!.midHash,
+        );
+      }
       widget.callback(
         DanmakuContentItem(
           editController.text,
@@ -473,10 +477,11 @@ class _SendDanmakuPanelState extends CommonTextPubPageState<SendDanmakuPanel> {
           },
           selfSend: true,
           isColorful: isColorful,
+          extra: extra,
         ),
       );
     } else {
-      SmartDialog.showToast('发送失败: ${res['msg']}');
+      res.toast();
     }
   }
 }

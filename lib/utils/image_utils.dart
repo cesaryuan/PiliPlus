@@ -11,13 +11,14 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:live_photo_maker/live_photo_maker.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ImageUtils {
+abstract class ImageUtils {
   static String get time =>
       DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
   static bool silentDownImg = Pref.silentDownImg;
@@ -164,8 +165,9 @@ class ImageUtils {
 
   static Future<bool> downloadImg(
     BuildContext context,
-    List<String> imgList,
-  ) async {
+    List<String> imgList, [
+    CacheManager? manager,
+  ]) async {
     if (Utils.isMobile && !await checkPermissionDependOnSdkInt(context)) {
       return false;
     }
@@ -179,41 +181,59 @@ class ImageUtils {
       );
     }
     try {
-      final isAndroid = Platform.isAndroid;
-      final tempPath = await Utils.temporaryDirectory;
       final futures = imgList.map((url) async {
         final name = Utils.getFileName(url);
-        final filePath = '$tempPath/$name';
 
-        final response = await Request().downloadFile(
+        final file = (await (manager ?? DefaultCacheManager()).getFileFromCache(
           url.http2https,
-          filePath,
-          cancelToken: cancelToken,
-        );
+        ))?.file;
 
-        if (isAndroid) {
-          if (response.statusCode == 200) {
+        if (file == null) {
+          final String filePath = '${await Utils.temporaryDirectory}/$name';
+
+          final response = await Request().downloadFile(
+            url.http2https,
+            filePath,
+            cancelToken: cancelToken,
+          );
+
+          if (Platform.isAndroid) {
+            if (response.statusCode == 200) {
+              await SaverGallery.saveFile(
+                filePath: filePath,
+                fileName: name,
+                androidRelativePath: "Pictures/${Constants.appName}",
+                skipIfExists: false,
+              ).whenComplete(File(filePath).tryDel);
+            }
+          }
+          return (
+            filePath: filePath,
+            name: name,
+            statusCode: response.statusCode,
+            del: true,
+          );
+        } else {
+          if (Platform.isAndroid) {
             await SaverGallery.saveFile(
-              filePath: filePath,
+              filePath: file.path,
               fileName: name,
               androidRelativePath: "Pictures/${Constants.appName}",
               skipIfExists: false,
-            ).whenComplete(File(filePath).tryDel);
+            );
           }
+
+          return (filePath: file.path, name: name, statusCode: 200, del: false);
         }
-        return (
-          filePath: filePath,
-          name: name,
-          statusCode: response.statusCode,
-        );
       });
       final result = await Future.wait(futures, eagerError: true);
-      if (!isAndroid) {
+      if (!Platform.isAndroid) {
         for (var res in result) {
           if (res.statusCode == 200) {
             await saveFileImg(
               filePath: res.filePath,
               fileName: res.name,
+              del: res.del,
             );
           }
         }
@@ -305,6 +325,7 @@ class ImageUtils {
     required String fileName,
     FileType type = FileType.image,
     bool needToast = false,
+    bool del = true,
   }) async {
     final file = File(filePath);
     if (!file.existsSync()) {
@@ -318,7 +339,8 @@ class ImageUtils {
         fileName: fileName,
         androidRelativePath: "Pictures/${Constants.appName}",
         skipIfExists: false,
-      ).whenComplete(file.tryDel);
+      );
+      if (del) file.tryDel();
     } else {
       final savePath = await FilePicker.platform.saveFile(
         type: type,
@@ -329,7 +351,7 @@ class ImageUtils {
         return;
       }
       await file.copy(savePath);
-      file.tryDel();
+      if (del) file.tryDel();
       result = SaveResult(true, null);
     }
     if (needToast) {

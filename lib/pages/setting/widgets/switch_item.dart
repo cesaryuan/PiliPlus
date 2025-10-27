@@ -9,7 +9,7 @@ import 'package:get/get.dart';
 class SetSwitchItem extends StatefulWidget {
   final String? title;
   final String? subtitle;
-  final String? setKey;
+  final String setKey;
   final bool defaultVal;
   final ValueChanged<bool>? onChanged;
   final bool needReboot;
@@ -21,7 +21,7 @@ class SetSwitchItem extends StatefulWidget {
   const SetSwitchItem({
     this.title,
     this.subtitle,
-    this.setKey,
+    required this.setKey,
     this.defaultVal = false,
     this.onChanged,
     this.needReboot = false,
@@ -143,14 +143,6 @@ class _SetSwitchItemState extends State<SetSwitchItem> {
         alignment: Alignment.centerRight,
         scale: 0.8,
         child: Switch(
-          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((
-            Set<WidgetState> states,
-          ) {
-            if (states.isNotEmpty && states.first == WidgetState.selected) {
-              return const Icon(Icons.done);
-            }
-            return null;
-          }),
           value: val,
           onChanged: (value) => switchChange(theme, value),
         ),

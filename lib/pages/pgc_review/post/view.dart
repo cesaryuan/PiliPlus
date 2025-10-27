@@ -1,4 +1,3 @@
-import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/http/pgc.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -62,14 +61,11 @@ class _PgcReviewPostPanelState extends State<PgcReviewPostPanel> {
             toolbarHeight: 45,
             title: Text(widget.name),
             actions: [
-              iconButton(
-                context: context,
-                icon: Icons.clear,
+              IconButton(
+                icon: const Icon(Icons.clear, size: 20),
                 onPressed: Get.back,
-                iconSize: 22,
-                bgColor: Colors.transparent,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 2),
             ],
             shape: Border(
               bottom: BorderSide(
@@ -94,12 +90,12 @@ class _PgcReviewPostPanelState extends State<PgcReviewPostPanel> {
                     return Obx(
                       () => index <= _score.value - 1
                           ? const Icon(
-                              CustomIcon.star_favorite_solid,
+                              CustomIcons.star_favorite_solid,
                               size: 50,
                               color: Color(0xFFFFAD35),
                             )
                           : const Icon(
-                              CustomIcon.star_favorite_line,
+                              CustomIcons.star_favorite_line,
                               size: 50,
                               color: Colors.grey,
                             ),

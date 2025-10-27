@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/models/common/settings_type.dart';
 import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
+import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
@@ -24,10 +25,19 @@ List<SettingsModel> get playSettings => [
     settingsType: SettingsType.sw1tch,
     title: '弹幕开关',
     subtitle: '是否展示弹幕',
-    leading: Icon(CustomIcon.dm_settings),
+    leading: Icon(CustomIcons.dm_settings),
     setKey: SettingBoxKey.enableShowDanmaku,
     defaultVal: true,
   ),
+  if (Utils.isMobile)
+    const SettingsModel(
+      settingsType: SettingsType.sw1tch,
+      title: '启用点击弹幕',
+      subtitle: '点击弹幕悬停，支持点赞、复制、举报操作',
+      leading: Icon(Icons.touch_app_outlined),
+      setKey: SettingBoxKey.enableTapDm,
+      defaultVal: true,
+    ),
   SettingsModel(
     settingsType: SettingsType.normal,
     onTap: (setState) => Get.toNamed('/playSpeedSet'),
@@ -130,9 +140,29 @@ List<SettingsModel> get playSettings => [
       }
     },
   ),
+  if (Utils.isDesktop)
+    SettingsModel(
+      settingsType: SettingsType.sw1tch,
+      title: '最小化时暂停/还原时播放',
+      leading: const Icon(Icons.pause_circle_outline),
+      setKey: SettingBoxKey.pauseOnMinimize,
+      defaultVal: false,
+      onChanged: (value) {
+        try {
+          Get.find<MainController>().pauseOnMinimize = value;
+        } catch (_) {}
+      },
+    ),
   const SettingsModel(
     settingsType: SettingsType.sw1tch,
-    title: '显示 SuperChat',
+    title: '启用键盘控制',
+    leading: Icon(Icons.keyboard_alt_outlined),
+    setKey: SettingBoxKey.keyboardControl,
+    defaultVal: true,
+  ),
+  const SettingsModel(
+    settingsType: SettingsType.sw1tch,
+    title: '显示 SuperChat (醒目留言)',
     leading: Icon(Icons.live_tv),
     setKey: SettingBoxKey.showSuperChat,
     defaultVal: true,
@@ -204,7 +234,7 @@ List<SettingsModel> get playSettings => [
       settingsType: SettingsType.sw1tch,
       title: '画中画不加载弹幕',
       subtitle: '当弹幕开关开启时，小窗屏蔽弹幕以获得较好的体验',
-      leading: Icon(Icons.subtitles_off_outlined),
+      leading: Icon(CustomIcons.dm_off),
       setKey: SettingBoxKey.pipNoDanmaku,
       defaultVal: false,
     ),

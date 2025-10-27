@@ -1,5 +1,6 @@
 import 'package:PiliPlus/common/widgets/radio_widget.dart';
 import 'package:PiliPlus/utils/extension.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -124,11 +125,12 @@ Future<void> autoWrapReportDialog(
                   Get.back();
                   SmartDialog.showToast('举报成功');
                 } else {
-                  SmartDialog.showToast(data['message']);
+                  SmartDialog.showToast(data['message'].toString());
                 }
               } catch (e) {
                 SmartDialog.dismiss();
                 SmartDialog.showToast('提交失败：$e');
+                if (kDebugMode) rethrow;
               }
             },
             child: const Text('确定'),
@@ -229,6 +231,36 @@ class ReportOptions {
       12: '虚假不实信息',
       13: '违法信息外链',
       0: '其他',
+    },
+  };
+
+  static Map<String, Map<int, String>> get danmakuReport => const {
+    '': {
+      1: '违法违禁',
+      2: '色情低俗',
+      3: '赌博诈骗',
+      4: '人身攻击',
+      5: '侵犯隐私',
+      6: '垃圾广告',
+      7: '引战',
+      8: '剧透',
+      9: '恶意刷屏',
+      10: '视频无关',
+      12: '青少年不良信息',
+      13: '违法信息外链',
+      0: '其它', // 11
+    },
+  };
+
+  static Map<String, Map<int, String>> get liveDanmakuReport => const {
+    '': {
+      1: '违法违规',
+      2: '低俗色情',
+      3: '垃圾广告',
+      4: '辱骂引战',
+      5: '政治敏感',
+      6: '青少年不良信息',
+      7: '其他', // avoid show form
     },
   };
 }

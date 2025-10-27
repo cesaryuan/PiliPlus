@@ -1,14 +1,9 @@
 import 'dart:math';
 
-import 'package:PiliPlus/common/skeleton/video_reply.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
-import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
-import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
-    show ReplyInfo;
-import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
@@ -19,7 +14,6 @@ import 'package:PiliPlus/pages/article/widgets/html_render.dart';
 import 'package:PiliPlus/pages/article/widgets/opus_content.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
-import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/grid.dart';
@@ -103,7 +97,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
               ),
             ),
             buildReplyHeader(theme),
-            Obx(() => _buildReplyList(theme, controller.loadingState.value)),
+            Obx(() => replyList(theme, controller.loadingState.value)),
           ],
         ),
       );
@@ -145,7 +139,6 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
           child: Padding(
             padding: EdgeInsets.only(right: padding),
             child: Scaffold(
-              key: scaffoldKey,
               backgroundColor: Colors.transparent,
               resizeToAvoidBottomInset: false,
               body: refreshIndicator(
@@ -155,10 +148,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     buildReplyHeader(theme),
-                    Obx(
-                      () =>
-                          _buildReplyList(theme, controller.loadingState.value),
-                    ),
+                    Obx(() => replyList(theme, controller.loadingState.value)),
                   ],
                 ),
               ),
@@ -179,7 +169,6 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
             // if (kDebugMode) debugPrint('json page');
             content = OpusContent(
               opus: controller.opus!,
-              callback: imageCallback,
               maxWidth: maxWidth,
             );
           } else if (controller.opusData?.modules.moduleBlocked != null) {
@@ -201,7 +190,6 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                   context: context,
                   html: controller.articleData!.content!,
                   maxWidth: maxWidth,
-                  callback: imageCallback,
                 ),
               );
             } else {
@@ -212,7 +200,6 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                     context: context,
                     element: res.body!.children[index],
                     maxWidth: maxWidth,
-                    callback: imageCallback,
                   );
                 },
                 separatorBuilder: (context, index) =>
@@ -403,68 +390,6 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
     ),
   );
 
-  Widget _buildReplyList(
-    ThemeData theme,
-    LoadingState<List<ReplyInfo>?> loadingState,
-  ) {
-    return switch (loadingState) {
-      Loading() => SliverList.builder(
-        itemCount: 12,
-        itemBuilder: (context, index) => const VideoReplySkeleton(),
-      ),
-      Success(:var response) =>
-        response?.isNotEmpty == true
-            ? SliverList.builder(
-                itemCount: response!.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == response.length) {
-                    controller.onLoadMore();
-                    return Container(
-                      alignment: Alignment.center,
-                      margin: EdgeInsets.only(bottom: padding.bottom),
-                      height: 125,
-                      child: Text(
-                        controller.isEnd ? '没有更多了' : '加载中...',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    );
-                  } else {
-                    return ReplyItemGrpc(
-                      replyItem: response[index],
-                      replyLevel: 1,
-                      replyReply: (replyItem, id) =>
-                          replyReply(context, replyItem, id, theme),
-                      onReply: (replyItem) => controller.onReply(
-                        context,
-                        replyItem: replyItem,
-                      ),
-                      onDelete: (item, subIndex) =>
-                          controller.onRemove(index, item, subIndex),
-                      upMid: controller.upMid,
-                      callback: imageCallback,
-                      onCheckReply: (item) =>
-                          controller.onCheckReply(item, isManual: true),
-                      onToggleTop: (item) => controller.onToggleTop(
-                        item,
-                        index,
-                        controller.commentId,
-                        controller.commentType,
-                      ),
-                    );
-                  }
-                },
-              )
-            : HttpError(onReload: controller.onReload),
-      Error(:var errMsg) => HttpError(
-        errMsg: errMsg,
-        onReload: controller.isLoaded.value ? controller.onReload : null,
-      ),
-    };
-  }
-
   PreferredSizeWidget _buildAppBar() => AppBar(
     title: Obx(() {
       if (controller.isLoaded.value && controller.showTitle.value) {
@@ -563,8 +488,8 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
               alignment: Alignment.bottomRight,
               child: Padding(
                 padding: EdgeInsets.only(
-                  right: 14,
-                  bottom: padding.bottom + 14,
+                  right: kFloatingActionButtonMargin,
+                  bottom: padding.bottom + kFloatingActionButtonMargin,
                 ),
                 child: replyButton,
               ),
@@ -607,8 +532,10 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
 
             Widget btn = Padding(
               padding: EdgeInsets.only(
-                right: 14,
-                bottom: 14 + (stats != null ? 0 : padding.bottom),
+                right: kFloatingActionButtonMargin,
+                bottom:
+                    kFloatingActionButtonMargin +
+                    (stats != null ? 0 : padding.bottom),
               ),
               child: replyButton,
             );
@@ -687,7 +614,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                       Expanded(
                         child: textIconButton(
                           text: '分享',
-                          icon: CustomIcon.share_node,
+                          icon: CustomIcons.share_node,
                           stat: null,
                           onPressed: () => Utils.shareText(controller.url),
                         ),

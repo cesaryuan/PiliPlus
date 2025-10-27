@@ -5,13 +5,17 @@ import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/select_mask.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
+import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pbenum.dart'
+    show PlaylistSource;
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
 import 'package:PiliPlus/models_new/fav/fav_detail/media.dart';
+import 'package:PiliPlus/pages/audio/view.dart';
 import 'package:PiliPlus/pages/fav_detail/controller.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -35,6 +39,21 @@ class FavVideoCardH extends StatelessWidget {
     final isOwner = !isSort && ctr!.isOwner;
     late final enableMultiSelect = ctr?.enableMultiSelect.value ?? false;
     final theme = Theme.of(context);
+
+    final onLongPress = isSort || enableMultiSelect
+        ? null
+        : isOwner && !enableMultiSelect
+        ? () {
+            ctr!
+              ..enableMultiSelect.value = true
+              ..onSelect(item);
+          }
+        : () => imageSaveDialog(
+            title: item.title,
+            cover: item.cover,
+            bvid: item.bvid,
+          );
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -48,30 +67,27 @@ class FavVideoCardH extends StatelessWidget {
                   return;
                 }
 
-                // pgc
-                if (item.type == 24) {
-                  PageUtils.viewPgc(
-                    seasonId: item.ogv!.seasonId,
-                    epId: item.id,
-                  );
-                  return;
+                switch (item.type) {
+                  case 12:
+                    AudioPage.toAudioPage(
+                      oid: item.id!,
+                      itemType: 3,
+                      from: PlaylistSource.AUDIO_CARD,
+                    );
+                    break;
+                  case 24:
+                    PageUtils.viewPgc(
+                      seasonId: item.ogv!.seasonId,
+                      epId: item.id,
+                    );
+                    break;
+                  default:
+                    ctr!.onViewFav(item, index);
+                    break;
                 }
-
-                ctr!.onViewFav(item, index);
               },
-        onLongPress: isSort || enableMultiSelect
-            ? null
-            : isOwner && !enableMultiSelect
-            ? () {
-                ctr!
-                  ..enableMultiSelect.value = true
-                  ..onSelect(item);
-              }
-            : () => imageSaveDialog(
-                title: item.title,
-                cover: item.cover,
-                bvid: item.bvid,
-              ),
+        onLongPress: onLongPress,
+        onSecondaryTap: Utils.isMobile ? null : onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: StyleString.safeSpace,
@@ -100,13 +116,21 @@ class FavVideoCardH extends StatelessWidget {
                           bottom: 6.0,
                           type: PBadgeType.gray,
                         ),
-                        PBadge(
-                          text: item.ogv?.typeName,
-                          top: 6.0,
-                          right: 6.0,
-                          bottom: null,
-                          left: null,
-                        ),
+                        if (item.type == 12)
+                          const PBadge(
+                            text: '音频',
+                            top: 6.0,
+                            right: 6.0,
+                            type: PBadgeType.gray,
+                          )
+                        else
+                          PBadge(
+                            text: item.ogv?.typeName,
+                            top: 6.0,
+                            right: 6.0,
+                            bottom: null,
+                            left: null,
+                          ),
                         if (!isSort)
                           Positioned.fill(
                             child: selectMask(
@@ -188,11 +212,9 @@ class FavVideoCardH extends StatelessWidget {
               right: 0,
               bottom: -8,
               child: iconButton(
-                context: context,
-                icon: Icons.clear,
+                icon: const Icon(Icons.clear),
                 tooltip: '取消收藏',
                 iconColor: theme.colorScheme.outline,
-                bgColor: Colors.transparent,
                 onPressed: () => showDialog(
                   context: context,
                   builder: (context) {

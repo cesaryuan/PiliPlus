@@ -13,6 +13,9 @@ import 'package:PiliPlus/pages/fav_sort/view.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/services.dart' show ValueChanged;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -84,6 +87,15 @@ class FavDetailController
   bool get isOwner => _isOwner.value ?? false;
 
   AccountService accountService = Get.find<AccountService>();
+
+  late double dx = 0;
+  late final RxBool isPlayAll = Pref.enablePlayAll.obs;
+
+  void setIsPlayAll(bool isPlayAll) {
+    if (this.isPlayAll.value == isPlayAll) return;
+    this.isPlayAll.value = isPlayAll;
+    GStorage.setting.put(SettingBoxKey.enablePlayAll, isPlayAll);
+  }
 
   @override
   void onInit() {
@@ -206,16 +218,18 @@ class FavDetailController
       cid: item.ugc!.firstCid!,
       cover: item.cover,
       title: item.title,
-      extraArguments: {
-        'sourceType': SourceType.fav,
-        'mediaId': folder.id,
-        'oid': item.id,
-        'favTitle': folder.title,
-        'count': folder.mediaCount,
-        'desc': true,
-        if (index != null) 'isContinuePlaying': index != 0,
-        'isOwner': isOwner,
-      },
+      extraArguments: isPlayAll.value
+          ? {
+              'sourceType': SourceType.fav,
+              'mediaId': folder.id,
+              'oid': item.id,
+              'favTitle': folder.title,
+              'count': folder.mediaCount,
+              'desc': true,
+              if (index != null) 'isContinuePlaying': index != 0,
+              'isOwner': isOwner,
+            }
+          : null,
     );
   }
 }

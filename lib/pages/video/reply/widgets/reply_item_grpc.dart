@@ -50,10 +50,9 @@ class ReplyItemGrpc extends StatelessWidget {
     this.showDialogue,
     this.getTag,
     this.onViewImage,
-    this.onDismissed,
-    this.callback,
     this.onCheckReply,
     this.onToggleTop,
+    this.jumpToDialogue,
   });
   final ReplyInfo replyItem;
   final int replyLevel;
@@ -65,19 +64,37 @@ class ReplyItemGrpc extends StatelessWidget {
   final VoidCallback? showDialogue;
   final Function? getTag;
   final VoidCallback? onViewImage;
-  final ValueChanged<int>? onDismissed;
-  final Function(List<String>, int)? callback;
   final ValueChanged<ReplyInfo>? onCheckReply;
   final ValueChanged<ReplyInfo>? onToggleTop;
+  final VoidCallback? jumpToDialogue;
 
   static final _voteRegExp = RegExp(r"^\{vote:\d+?\}$");
-  static final _timeRegExp = RegExp(r'^\b(?:\d+[:：])?\d+[:：]\d+\b$');
+  static final _timeRegExp = RegExp(r'^(?:\d+[:：])?\d+[:：]\d+$');
   static bool enableWordRe = Pref.enableWordRe;
   static int? replyLengthLimit = Pref.replyLengthLimit;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
+    final isMobile = Utils.isMobile;
+    void showMore() => showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: min(640, context.mediaQueryShortestSide),
+      ),
+      builder: (context) {
+        return morePanel(
+          context: context,
+          item: replyItem,
+          onDelete: () => onDelete?.call(replyItem, null),
+          isSubReply: false,
+        );
+      },
+    );
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -87,23 +104,9 @@ class ReplyItemGrpc extends StatelessWidget {
         },
         onLongPress: () {
           feedBack();
-          showModalBottomSheet(
-            context: context,
-            useSafeArea: true,
-            isScrollControlled: true,
-            constraints: BoxConstraints(
-              maxWidth: min(640, context.mediaQueryShortestSide),
-            ),
-            builder: (context) {
-              return morePanel(
-                context: context,
-                item: replyItem,
-                onDelete: () => onDelete?.call(replyItem, null),
-                isSubReply: false,
-              );
-            },
-          );
+          showMore();
         },
+        onSecondaryTap: isMobile ? null : showMore,
         child: _buildContent(context, theme),
       ),
     );
@@ -269,6 +272,7 @@ class ReplyItemGrpc extends StatelessWidget {
         Padding(
           padding: padding,
           child: custom_text.Text.rich(
+            primary: theme.colorScheme.primary,
             style: TextStyle(
               height: 1.75,
               fontSize: theme.textTheme.bodyMedium!.fontSize,
@@ -311,8 +315,6 @@ class ReplyItemGrpc extends StatelessWidget {
                     )
                     .toList(),
                 onViewImage: onViewImage,
-                onDismissed: onDismissed,
-                callback: callback,
               ),
             ),
           ),
@@ -416,6 +418,24 @@ class ReplyItemGrpc extends StatelessWidget {
                 ),
               ),
             ),
+          )
+        else if (replyLevel == 3 &&
+            needDivider &&
+            replyItem.parent != replyItem.root)
+          SizedBox(
+            height: 32,
+            child: TextButton(
+              onPressed: jumpToDialogue,
+              style: style,
+              child: Text(
+                '跳转回复',
+                style: TextStyle(
+                  color: theme.colorScheme.outline,
+                  fontSize: theme.textTheme.labelMedium!.fontSize,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ),
           ),
         const Spacer(),
         ZanButtonGrpc(replyItem: replyItem),
@@ -456,28 +476,30 @@ class ReplyItemGrpc extends StatelessWidget {
                     padding = const EdgeInsets.fromLTRB(8, 4, 8, 4);
                   }
                 }
+                void showMore() => showModalBottomSheet(
+                  context: context,
+                  useSafeArea: true,
+                  isScrollControlled: true,
+                  constraints: BoxConstraints(
+                    maxWidth: min(640, context.mediaQueryShortestSide),
+                  ),
+                  builder: (context) {
+                    return morePanel(
+                      context: context,
+                      item: childReply,
+                      onDelete: () => onDelete?.call(replyItem, index),
+                      isSubReply: true,
+                    );
+                  },
+                );
                 return InkWell(
                   onTap: () =>
                       replyReply?.call(replyItem, childReply.id.toInt()),
                   onLongPress: () {
                     feedBack();
-                    showModalBottomSheet(
-                      context: context,
-                      useSafeArea: true,
-                      isScrollControlled: true,
-                      constraints: BoxConstraints(
-                        maxWidth: min(640, context.mediaQueryShortestSide),
-                      ),
-                      builder: (context) {
-                        return morePanel(
-                          context: context,
-                          item: childReply,
-                          onDelete: () => onDelete?.call(replyItem, index),
-                          isSubReply: true,
-                        );
-                      },
-                    );
+                    showMore();
                   },
+                  onSecondaryTap: Utils.isMobile ? null : showMore,
                   child: Padding(
                     padding: padding,
                     child: Text.rich(
@@ -591,8 +613,8 @@ class ReplyItemGrpc extends StatelessWidget {
     ];
     String patternStr = [
       ...specialTokens.map(RegExp.escape),
-      r'(\b(?:\d+[:：])?\d+[:：]\d+\b)',
-      r'(\{vote:\d+?\})',
+      r'(?:\d+[:：])?\d+[:：]\d+',
+      r'\{vote:\d+?\}',
       Constants.urlRegex.pattern,
     ].join('|');
     final RegExp pattern = RegExp(patternStr);
@@ -860,9 +882,8 @@ class ReplyItemGrpc extends StatelessWidget {
           InkWell(
             onTap: Get.back,
             borderRadius: StyleString.bottomSheetRadius,
-            child: Container(
+            child: SizedBox(
               height: 35,
-              padding: const EdgeInsets.only(bottom: 2),
               child: Center(
                 child: Container(
                   width: 32,
@@ -1031,7 +1052,7 @@ class ReplyItemGrpc extends StatelessWidget {
             leading: const Icon(Icons.save_alt, size: 19),
             title: Text('保存评论', style: style),
           ),
-          if (item.mid == ownerMid)
+          if (kDebugMode || item.mid == ownerMid)
             ListTile(
               onTap: () {
                 Get.back();

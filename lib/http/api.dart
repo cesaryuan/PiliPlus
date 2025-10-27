@@ -214,6 +214,8 @@ class Api {
   // https://api.bilibili.com/x/polymer/web-dynamic/v1/portal
   static const String followUp = '/x/polymer/web-dynamic/v1/portal';
 
+  static const String dynUplist = '/x/polymer/web-dynamic/v1/uplist';
+
   // 关注的up动态
   // https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all
   // https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?timezone_offset=-480&type=video&page=1&features=itemOpusStyle
@@ -260,9 +262,9 @@ class Api {
       'https://s.search.bilibili.com/main/suggest';
 
   // 分类搜索
-  static const String searchByType = '/x/web-interface/search/type';
+  static const String searchByType = '/x/web-interface/wbi/search/type';
 
-  static const String searchAll = '/x/web-interface/search/all/v2';
+  static const String searchAll = '/x/web-interface/wbi/search/all/v2';
 
   // 记录视频播放进度
   // https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/video/report.md
@@ -397,27 +399,6 @@ class Api {
   static const String pgcDel = '/pgc/web/follow/del';
 
   static const String pgcUpdate = '/pgc/web/follow/status/update';
-
-  // 番剧列表
-  // https://api.bilibili.com/pgc/season/index/result?
-  // st=1&
-  // order=3
-  // season_version=-1  全部-1 正片1 电影2 其他3
-  // spoken_language_type=-1  全部-1 原生1 中文配音2
-  // area=-1&
-  // is_finish=-1&
-  // copyright=-1&
-  // season_status=-1&
-  // season_month=-1&
-  // year=-1&
-  // style_id=-1&
-  // sort=0&
-  // page=1&
-  // season_type=1&
-  // pagesize=20&
-  // type=1
-  static const String pgcIndex =
-      '/pgc/season/index/result?st=1&order=3&season_version=-1&spoken_language_type=-1&area=-1&is_finish=-1&copyright=-1&season_status=-1&season_month=-1&year=-1&style_id=-1&sort=0&season_type=1&pagesize=20&type=1';
 
   // 我的追番/追剧 ?type=1&pn=1&ps=15
   static const String favPgc = '/x/space/bangumi/follow/list';
@@ -965,4 +946,28 @@ class Api {
 
   static const String superChatMsg =
       '${HttpString.liveBaseUrl}/av/v1/SuperChat/getMessageList';
+
+  static const String popularSeriesOne = '/x/web-interface/popular/series/one';
+
+  static const String popularSeriesList =
+      '/x/web-interface/popular/series/list';
+
+  static const String popularPrecious = '/x/web-interface/popular/precious';
+
+  static const String userRealName = '/x/member/app/up/realname';
+
+  static const String liveDmReport =
+      '${HttpString.liveBaseUrl}/xlive/web-ucenter/v1/dMReport/Report';
+
+  static const String danmakuLike = '/x/v2/dm/thumbup/add';
+
+  static const String danmakuReport = '/x/dm/report/add';
+
+  static const String danmakuRecall = '/x/dm/recall';
+
+  static const String danmakuEditState = '/x/v2/dm/edit/state';
+
+  static const String followedUp = '/x/relation/followings/followed_upper';
+
+  static const String sameFollowing = '/x/relation/same/followings';
 }

@@ -1,10 +1,10 @@
 import 'dart:async' show FutureOr;
 import 'dart:io' show Platform;
-import 'dart:math';
 
 import 'package:PiliPlus/grpc/grpc_req.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/user.dart';
+import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/models/user/info.dart';
@@ -21,23 +21,27 @@ import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as web;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
-class LoginUtils {
-  static final random = Random();
-
+abstract class LoginUtils {
   static FutureOr setWebCookie([Account? account]) {
-    if (Platform.isWindows) {
+    if (Platform.isLinux) {
       return null;
     }
     final cookies = (account ?? Accounts.main).cookieJar.toList();
-    final webManager = web.CookieManager();
+    final webManager = web.CookieManager.instance(
+      webViewEnvironment: webViewEnvironment,
+    );
+    final isWindows = Platform.isWindows;
     return Future.wait(
       cookies.map(
         (cookie) => webManager.setCookie(
-          url: web.WebUri(cookie.domain ?? ''),
+          url: web.WebUri(
+            '${isWindows ? 'https://' : ''} ${cookie.domain}',
+          ),
           name: cookie.name,
           value: cookie.value,
           path: cookie.path ?? '/',
@@ -119,7 +123,10 @@ class LoginUtils {
     GrpcReq.updateHeaders(null);
 
     await Future.wait([
-      web.CookieManager().deleteAllCookies(),
+      if (!Platform.isLinux)
+        web.CookieManager.instance(
+          webViewEnvironment: webViewEnvironment,
+        ).deleteAllCookies(),
       GStorage.userInfo.delete('userInfoCache'),
     ]);
 
@@ -163,7 +170,7 @@ class LoginUtils {
   static String generateBuvid() {
     var md5Str = Iterable.generate(
       32,
-      (_) => random.nextInt(16).toRadixString(16),
+      (_) => Utils.random.nextInt(16).toRadixString(16),
     ).join().toUpperCase();
     return 'XY${md5Str[2]}${md5Str[12]}${md5Str[22]}$md5Str';
   }
@@ -188,11 +195,11 @@ class LoginUtils {
 
     final String randomHex32 = List.generate(
       32,
-      (index) => random.nextInt(16).toRadixString(16),
+      (index) => Utils.random.nextInt(16).toRadixString(16),
     ).join();
     final String randomHex16 = List.generate(
       16,
-      (index) => random.nextInt(16).toRadixString(16),
+      (index) => Utils.random.nextInt(16).toRadixString(16),
     ).join();
 
     final String deviceID = randomHex32 + yyyyMMddHHmmss + randomHex16;

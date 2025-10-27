@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:PiliPlus/common/constants.dart';
@@ -328,7 +327,9 @@ class MemberHttp {
     }
   }
 
-  static Future memberCardInfo({int? mid}) async {
+  static Future<LoadingState<MemberCardInfoData>> memberCardInfo({
+    int? mid,
+  }) async {
     var res = await Request().get(
       Api.memberCardInfo,
       queryParameters: {
@@ -337,12 +338,9 @@ class MemberHttp {
       },
     );
     if (res.data['code'] == 0) {
-      return {
-        'status': true,
-        'data': MemberCardInfoData.fromJson(res.data['data']),
-      };
+      return Success(MemberCardInfoData.fromJson(res.data['data']));
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 
@@ -406,18 +404,31 @@ class MemberHttp {
       'timezone_offset': '-480',
       'features': 'itemOpusStyle,listOnlyfans',
       'platform': 'web',
-      'web_location': '333.999',
+      'web_location': '333.1387',
       'dm_img_list': '[]',
       'dm_img_str': dmImgStr,
       'dm_cover_img_str': dmCoverImgStr,
       'dm_img_inter': '{"ds":[],"wh":[0,0,0],"of":[0,0,0]}',
-      'x-bili-device-req-json': jsonEncode({"platform": "web", "device": "pc"}),
-      'x-bili-web-req-json': jsonEncode({"spm_id": "333.999"}),
+      'x-bili-device-req-json':
+          '{"platform":"web","device":"pc","spmid":"333.1387"}',
     });
-    var res = await Request().get(Api.memberDynamic, queryParameters: params);
+    var res = await Request().get(
+      Api.memberDynamic,
+      queryParameters: params,
+      options: Options(
+        headers: {
+          'user-agent': UaType.pc.ua,
+          'origin': 'https://space.bilibili.com',
+          'referer': 'https://space.bilibili.com/$mid/dynamic',
+        },
+      ),
+    );
     if (res.data['code'] == 0) {
       try {
         DynamicsDataModel data = DynamicsDataModel.fromJson(res.data['data']);
+        if (data.loadNext == true) {
+          return memberDynamic(offset: data.offset, mid: mid);
+        }
         return Success(data);
       } catch (err) {
         return Error(err.toString());
@@ -427,37 +438,6 @@ class MemberHttp {
         -352: '风控校验失败，请检查登录状态',
       };
       return Error(errMap[res.data['code']] ?? res.data['message']);
-    }
-  }
-
-  // 搜索用户动态
-  static Future memberDynamicSearch({
-    required int pn,
-    required dynamic mid,
-    required dynamic offset,
-    required String keyword,
-  }) async {
-    var res = await Request().get(
-      Api.dynSearch,
-      queryParameters: {
-        'host_mid': mid,
-        'page': pn,
-        'offset': offset,
-        'keyword': keyword,
-        'features': 'itemOpusStyle,listOnlyfans',
-        'web_location': 333.1387,
-      },
-    );
-    if (res.data['code'] == 0) {
-      return {
-        'status': true,
-        'data': DynamicsDataModel.fromJson(res.data['data']),
-      };
-    } else {
-      return {
-        'status': false,
-        'msg': res.data['message'],
-      };
     }
   }
 

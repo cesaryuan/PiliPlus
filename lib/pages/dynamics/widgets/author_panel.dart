@@ -19,6 +19,7 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart' hide InkWell;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart' hide ContextExtensionss;
@@ -252,9 +253,8 @@ class AuthorPanel extends StatelessWidget {
               InkWell(
                 onTap: Get.back,
                 borderRadius: StyleString.bottomSheetRadius,
-                child: Container(
+                child: SizedBox(
                   height: 35,
-                  padding: const EdgeInsets.only(bottom: 2),
                   child: Center(
                     child: Container(
                       width: 32,
@@ -370,7 +370,7 @@ class AuthorPanel extends StatelessWidget {
                 },
                 minLeadingWidth: 0,
               ),
-              if (moduleAuthor.mid == Accounts.main.mid) ...[
+              if (kDebugMode || moduleAuthor.mid == Accounts.main.mid) ...[
                 ListTile(
                   onTap: () {
                     Get.back();

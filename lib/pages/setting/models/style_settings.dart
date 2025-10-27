@@ -27,6 +27,7 @@ import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:auto_orientation/auto_orientation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +36,24 @@ import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 List<SettingsModel> get styleSettings => [
+  if (Utils.isDesktop) ...[
+    const SettingsModel(
+      settingsType: SettingsType.sw1tch,
+      title: '显示窗口标题栏',
+      leading: Icon(Icons.window),
+      setKey: SettingBoxKey.showWindowTitleBar,
+      defaultVal: true,
+      needReboot: true,
+    ),
+    const SettingsModel(
+      settingsType: SettingsType.sw1tch,
+      title: '显示托盘图标',
+      leading: Icon(Icons.donut_large_rounded),
+      setKey: SettingBoxKey.showTrayIcon,
+      defaultVal: true,
+      needReboot: true,
+    ),
+  ],
   SettingsModel(
     settingsType: SettingsType.sw1tch,
     title: '横屏适配',
@@ -566,7 +585,7 @@ List<SettingsModel> get styleSettings => [
     setKey: SettingBoxKey.isPureBlackTheme,
     defaultVal: false,
     onChanged: (value) {
-      if (Get.theme.brightness == Brightness.dark || Pref.darkVideoPage) {
+      if (Get.isDarkMode || Pref.darkVideoPage) {
         Get.forceAppUpdate();
       }
     },

@@ -108,7 +108,6 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
               child: DynamicPanel(
                 item: controller.dynItem,
                 isDetail: true,
-                callback: imageCallback,
                 maxWidth: maxWidth - this.padding.horizontal - 2 * padding,
                 isDetailPortraitW: isPortrait,
               ),
@@ -139,7 +138,6 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                     child: DynamicPanel(
                       item: controller.dynItem,
                       isDetail: true,
-                      callback: imageCallback,
                       maxWidth:
                           (maxWidth - this.padding.horizontal) *
                               (flex / (flex + flex1)) -
@@ -156,7 +154,6 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
             child: Padding(
               padding: EdgeInsets.only(right: padding),
               child: Scaffold(
-                key: scaffoldKey,
                 backgroundColor: Colors.transparent,
                 resizeToAvoidBottomInset: false,
                 body: refreshIndicator(
@@ -201,8 +198,8 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                 alignment: Alignment.bottomRight,
                 child: Padding(
                   padding: EdgeInsets.only(
-                    right: 14,
-                    bottom: padding.bottom + 14,
+                    right: kFloatingActionButtonMargin,
+                    bottom: padding.bottom + kFloatingActionButtonMargin,
                   ),
                   child: replyButton,
                 ),
@@ -246,7 +243,10 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 14, bottom: 14),
+                  padding: const EdgeInsets.only(
+                    right: kFloatingActionButtonMargin,
+                    bottom: kFloatingActionButtonMargin,
+                  ),
                   child: replyButton,
                 ),
                 Container(
@@ -296,7 +296,7 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                       ),
                       Expanded(
                         child: textIconButton(
-                          icon: CustomIcon.share_node,
+                          icon: CustomIcons.share_node,
                           text: '分享',
                           stat: null,
                           onPressed: () => Utils.shareText(

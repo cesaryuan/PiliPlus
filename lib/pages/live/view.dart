@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/video_card_v.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
+import 'package:PiliPlus/common/widgets/button/more_btn.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
@@ -16,8 +17,10 @@ import 'package:PiliPlus/pages/live/widgets/live_item_app.dart';
 import 'package:PiliPlus/pages/live_area/view.dart';
 import 'package:PiliPlus/pages/live_follow/view.dart';
 import 'package:PiliPlus/pages/search/widgets/search_text.dart';
+import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -40,29 +43,31 @@ class _LivePageState extends CommonPageState<LivePage, LiveController>
   Widget build(BuildContext context) {
     super.build(context);
     final ThemeData theme = Theme.of(context);
-    return Container(
-      clipBehavior: Clip.hardEdge,
-      margin: const EdgeInsets.symmetric(horizontal: StyleString.safeSpace),
-      decoration: const BoxDecoration(borderRadius: StyleString.mdRadius),
-      child: refreshIndicator(
-        onRefresh: controller.onRefresh,
-        child: CustomScrollView(
-          controller: controller.scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.only(
-                top: StyleString.cardSpace,
-                bottom: 100,
+    return onBuild(
+      Container(
+        clipBehavior: Clip.hardEdge,
+        margin: const EdgeInsets.symmetric(horizontal: StyleString.safeSpace),
+        decoration: const BoxDecoration(borderRadius: StyleString.mdRadius),
+        child: refreshIndicator(
+          onRefresh: controller.onRefresh,
+          child: CustomScrollView(
+            controller: controller.scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.only(
+                  top: StyleString.cardSpace,
+                  bottom: 100,
+                ),
+                sliver: SliverMainAxisGroup(
+                  slivers: [
+                    Obx(() => _buildTop(theme, controller.topState.value)),
+                    Obx(() => _buildBody(theme, controller.loadingState.value)),
+                  ],
+                ),
               ),
-              sliver: SliverMainAxisGroup(
-                slivers: [
-                  Obx(() => _buildTop(theme, controller.topState.value)),
-                  Obx(() => _buildBody(theme, controller.loadingState.value)),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -125,8 +130,27 @@ class _LivePageState extends CommonPageState<LivePage, LiveController>
                   size: 26,
                   iconSize: 16,
                   context: context,
+                  tooltip: '游戏赛事',
+                  icon: const Icon(Icons.gamepad),
+                  onPressed: () {
+                    final isDark = theme.brightness.isDark;
+                    Get.toNamed(
+                      '/webview',
+                      parameters: {
+                        'uaType': 'mob',
+                        'url':
+                            'https://www.bilibili.com/h5/match/data/home?navhide=1&native.theme=${isDark ? 2 : 1}&night=${isDark ? 1 : 0}',
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                iconButton(
+                  size: 26,
+                  iconSize: 16,
+                  context: context,
                   tooltip: '全部标签',
-                  icon: Icons.widgets,
+                  icon: const Icon(Icons.widgets),
                   onPressed: () => Get.to(const LiveAreaPage()),
                 ),
               ],
@@ -248,25 +272,9 @@ class _LivePageState extends CommonPageState<LivePage, LiveController>
               ),
             ),
             const Spacer(),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            moreTextButton(
               onTap: () => Get.to(const LiveFollowPage()),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '查看更多',
-                    style: TextStyle(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  Icon(
-                    size: 20,
-                    Icons.keyboard_arrow_right_outlined,
-                    color: theme.colorScheme.outline,
-                  ),
-                ],
-              ),
+              color: theme.colorScheme.outline,
             ),
           ],
         ),
@@ -291,6 +299,9 @@ class _LivePageState extends CommonPageState<LivePage, LiveController>
               Feedback.forLongPress(context);
               Get.toNamed('/member?mid=${item.uid}');
             },
+            onSecondaryTap: Utils.isMobile
+                ? null
+                : () => Get.toNamed('/member?mid=${item.uid}'),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

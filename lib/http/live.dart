@@ -4,6 +4,7 @@ import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/login.dart';
 import 'package:PiliPlus/http/ua_type.dart';
+import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/live_search_type.dart';
 import 'package:PiliPlus/models_new/live/live_area_list/area_item.dart';
 import 'package:PiliPlus/models_new/live/live_area_list/area_list.dart';
@@ -20,12 +21,20 @@ import 'package:PiliPlus/models_new/live/live_search/data.dart';
 import 'package:PiliPlus/models_new/live/live_second_list/data.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/data.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
 
-class LiveHttp {
-  static Future sendLiveMsg({roomId, msg, dmType, emoticonOptions}) async {
+abstract final class LiveHttp {
+  static Account get recommend => Accounts.get(AccountType.recommend);
+
+  static Future sendLiveMsg({
+    required Object roomId,
+    required Object msg,
+    Object? dmType,
+    Object? emoticonOptions,
+  }) async {
     String csrf = Accounts.main.csrf;
     var res = await Request().post(
       Api.sendLiveMsg,
@@ -67,29 +76,31 @@ class LiveHttp {
     }
   }
 
-  static Future liveRoomInfo({roomId, qn, bool onlyAudio = false}) async {
+  static Future<LoadingState<RoomPlayInfoData>> liveRoomInfo({
+    roomId,
+    qn,
+    bool onlyAudio = false,
+  }) async {
     var res = await Request().get(
       Api.liveRoomInfo,
-      queryParameters: {
+      queryParameters: await WbiSign.makSign({
         'room_id': roomId,
-        'protocol': '0, 1',
-        'format': '0, 1, 2',
-        'codec': '0, 1',
+        'protocol': '0,1',
+        'format': '0,1,2',
+        'codec': '0,1,2',
         'qn': qn,
         'platform': 'web',
         'ptype': 8,
         'dolby': 5,
         'panorama': 1,
         if (onlyAudio) 'only_audio': 1,
-      },
+        'web_location': 444.8,
+      }),
     );
     if (res.data['code'] == 0) {
-      return {
-        'status': true,
-        'data': RoomPlayInfoData.fromJson(res.data['data']),
-      };
+      return Success(RoomPlayInfoData.fromJson(res.data['data']));
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 
@@ -165,11 +176,10 @@ class LiveHttp {
 
   static Future<LoadingState<LiveIndexData>> liveFeedIndex({
     required int pn,
-    required bool isLogin,
     bool moduleSelect = false,
   }) async {
     final params = {
-      'access_key': ?Accounts.main.accessKey,
+      'access_key': ?recommend.accessKey,
       'appkey': Constants.appKey,
       'channel': 'master',
       'actionKey': 'appkey',
@@ -187,7 +197,7 @@ class LiveHttp {
       'network': 'wifi',
       'page': pn,
       'platform': 'android',
-      if (isLogin) 'relation_page': 1,
+      if (recommend.isLogin) 'relation_page': 1,
       's_locale': 'zh_CN',
       'scale': 2,
       'statistics': Constants.statisticsApp,
@@ -245,13 +255,12 @@ class LiveHttp {
 
   static Future<LoadingState<LiveSecondData>> liveSecondList({
     required int pn,
-    required bool isLogin,
-    required areaId,
-    required parentAreaId,
+    required Object? areaId,
+    required Object? parentAreaId,
     String? sortType,
   }) async {
     final params = {
-      'access_key': ?Accounts.main.accessKey,
+      'access_key': ?recommend.accessKey,
       'appkey': Constants.appKey,
       'actionKey': 'appkey',
       'channel': 'master',
@@ -313,11 +322,9 @@ class LiveHttp {
     }
   }
 
-  static Future<LoadingState<List<AreaList>?>> liveAreaList({
-    required bool isLogin,
-  }) async {
+  static Future<LoadingState<List<AreaList>?>> liveAreaList() async {
     final params = {
-      'access_key': ?Accounts.main.accessKey,
+      'access_key': ?recommend.accessKey,
       'appkey': Constants.appKey,
       'actionKey': 'appkey',
       'build': 8430300,
@@ -352,9 +359,7 @@ class LiveHttp {
     }
   }
 
-  static Future<LoadingState<List<AreaItem>>> getLiveFavTag({
-    required bool isLogin,
-  }) async {
+  static Future<LoadingState<List<AreaItem>>> getLiveFavTag() async {
     final params = {
       'access_key': ?Accounts.main.accessKey,
       'appkey': Constants.appKey,
@@ -432,11 +437,10 @@ class LiveHttp {
   }
 
   static Future<LoadingState<List<AreaItem>?>> liveRoomAreaList({
-    required bool isLogin,
-    required parentid,
+    required Object parentid,
   }) async {
     final params = {
-      'access_key': ?Accounts.main.accessKey,
+      'access_key': ?recommend.accessKey,
       'appkey': Constants.appKey,
       'actionKey': 'appkey',
       'build': 8430300,
@@ -473,13 +477,12 @@ class LiveHttp {
   }
 
   static Future<LoadingState<LiveSearchData>> liveSearch({
-    required bool isLogin,
     required int page,
     required String keyword,
     required LiveSearchType type,
   }) async {
     final params = {
-      'access_key': ?Accounts.main.accessKey,
+      'access_key': ?recommend.accessKey,
       'appkey': Constants.appKey,
       'actionKey': 'appkey',
       'build': 8430300,
@@ -662,5 +665,41 @@ class LiveHttp {
     } else {
       return Error(res.data['message']);
     }
+  }
+
+  static Future<Map<String, dynamic>> liveDmReport({
+    required int roomId,
+    required Object mid,
+    required String msg,
+    required String reason,
+    required int reasonId,
+    required int dmType,
+    required Object idStr,
+    required Object ts,
+    required Object sign,
+  }) async {
+    final csrf = Accounts.main.csrf;
+    final data = {
+      'id': 0,
+      'roomid': roomId,
+      'tuid': mid,
+      'msg': msg,
+      'reason': reason,
+      'ts': ts,
+      'sign': sign,
+      'reason_id': reasonId,
+      'token': '',
+      'dm_type': dmType,
+      'id_str': idStr,
+      'csrf_token': csrf,
+      'csrf': csrf,
+      'visit_id': '',
+    };
+    final res = await Request().post(
+      Api.liveDmReport,
+      data: data,
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+    return res.data as Map<String, dynamic>;
   }
 }

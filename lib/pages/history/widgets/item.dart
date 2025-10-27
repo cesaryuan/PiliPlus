@@ -12,6 +12,7 @@ import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -37,6 +38,13 @@ class HistoryItem extends StatelessWidget {
     String bvid = item.history.bvid ?? IdUtils.av2bv(aid);
     final business = item.history.business;
     final enableMultiSelect = ctr.enableMultiSelect.value;
+
+    final onLongPress = enableMultiSelect
+        ? null
+        : () => ctr
+            ..enableMultiSelect.value = true
+            ..onSelect(item);
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -88,11 +96,8 @@ class HistoryItem extends StatelessWidget {
                   }
                 }
               },
-        onLongPress: enableMultiSelect
-            ? null
-            : () => ctr
-                ..enableMultiSelect.value = true
-                ..onSelect(item),
+        onLongPress: onLongPress,
+        onSecondaryTap: Utils.isMobile ? null : onLongPress,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -129,8 +134,14 @@ class HistoryItem extends StatelessWidget {
                                 bottom: 8.0,
                                 type: PBadgeType.gray,
                               ),
-                            // 右上角
-                            if (item.badge?.isNotEmpty == true)
+                            if (item.isFav == 1)
+                              const PBadge(
+                                text: '已收藏',
+                                top: 6.0,
+                                right: 6.0,
+                                type: PBadgeType.gray,
+                              )
+                            else if (item.badge?.isNotEmpty == true)
                               PBadge(
                                 text: item.badge,
                                 top: 6.0,

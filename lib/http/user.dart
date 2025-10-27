@@ -5,15 +5,18 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/user/info.dart';
 import 'package:PiliPlus/models/user/stat.dart';
 import 'package:PiliPlus/models_new/coin_log/data.dart';
+import 'package:PiliPlus/models_new/follow/data.dart';
 import 'package:PiliPlus/models_new/history/data.dart';
 import 'package:PiliPlus/models_new/later/data.dart';
 import 'package:PiliPlus/models_new/login_log/data.dart';
 import 'package:PiliPlus/models_new/media_list/data.dart';
 import 'package:PiliPlus/models_new/space_setting/data.dart';
 import 'package:PiliPlus/models_new/sub/sub/data.dart';
+import 'package:PiliPlus/models_new/user_real_name/data.dart';
 import 'package:PiliPlus/models_new/video/video_tag/data.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
+import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
@@ -471,6 +474,69 @@ class UserHttp {
     );
     if (res.data['code'] == 0) {
       return Success(CoinLogData.fromJson(res.data['data']));
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<UserRealNameData>> getUserRealName(
+    Object mid,
+  ) async {
+    final params = {
+      'access_key': Accounts.main.accessKey,
+      'up_mid': mid,
+    };
+    AppSign.appSign(params);
+    final res = await Request().get(
+      Api.userRealName,
+      queryParameters: params,
+    );
+    if (res.data['code'] == 0) {
+      return Success(UserRealNameData.fromJson(res.data['data']));
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<FollowData>> followedUp({
+    required Object mid,
+    required int pn,
+  }) async {
+    final res = await Request().get(
+      Api.followedUp,
+      queryParameters: {
+        'csrf': Accounts.main.csrf,
+        'pn': pn,
+        'vmid': mid,
+        'web_location': 333.789,
+        'x-bili-device-req-json':
+            '{"platform":"web","device":"pc","spmid":"333.789"}',
+      },
+    );
+    if (res.data['code'] == 0) {
+      return Success(FollowData.fromJson(res.data['data']));
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<FollowData>> sameFollowing({
+    required Object mid,
+    int? pn,
+  }) async {
+    final res = await Request().get(
+      Api.sameFollowing,
+      queryParameters: {
+        'csrf': Accounts.main.csrf,
+        'pn': ?pn,
+        'vmid': mid,
+        'web_location': 333.789,
+        'x-bili-device-req-json':
+            '{"platform":"web","device":"pc","spmid":"333.789"}',
+      },
+    );
+    if (res.data['code'] == 0) {
+      return Success(FollowData.fromJson(res.data['data']));
     } else {
       return Error(res.data['message']);
     }

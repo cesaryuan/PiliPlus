@@ -50,6 +50,14 @@ class DynamicsHttp {
           type: type,
           tempBannedList: tempBannedList,
         );
+        if (data.loadNext == true) {
+          return followDynamic(
+            type: type,
+            offset: data.offset,
+            mid: mid,
+            tempBannedList: tempBannedList,
+          );
+        }
         return Success(data);
       } catch (err) {
         return Error(err.toString());
@@ -60,9 +68,31 @@ class DynamicsHttp {
   }
 
   static Future<LoadingState<FollowUpModel>> followUp() async {
-    var res = await Request().get(Api.followUp);
+    var res = await Request().get(
+      Api.followUp,
+      queryParameters: {
+        'up_list_more': 1,
+        'web_location': 333.1365,
+      },
+    );
     if (res.data['code'] == 0) {
       return Success(FollowUpModel.fromJson(res.data['data']));
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<DynUpList>> dynUpList(String? offset) async {
+    var res = await Request().get(
+      Api.dynUplist,
+      queryParameters: {
+        'offset': offset,
+        'platform': 'web',
+        'web_location': 333.1365,
+      },
+    );
+    if (res.data['code'] == 0) {
+      return Success(DynUpList.fromJson(res.data['data']));
     } else {
       return Error(res.data['message']);
     }

@@ -9,11 +9,14 @@ import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/pages/home/view.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
+import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/context_ext.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +35,7 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp>
     with RouteAware, WidgetsBindingObserver, WindowListener, TrayListener {
   final MainController _mainController = Get.put(MainController());
+  late final _setting = GStorage.setting;
 
   @override
   void initState() {
@@ -41,16 +45,22 @@ class _MainAppState extends State<MainApp>
       windowManager
         ..addListener(this)
         ..setPreventClose(true);
-      trayManager.addListener(this);
-      _handleTray();
+      if (_mainController.showTrayIcon) {
+        trayManager.addListener(this);
+        _handleTray();
+      }
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final brightness = Theme.brightnessOf(context);
     NetworkImgLayer.reduce =
-        NetworkImgLayer.reduceLuxColor != null && context.isDarkMode;
+        NetworkImgLayer.reduceLuxColor != null && brightness.isDark;
+    if (Utils.isDesktop) {
+      windowManager.setBrightness(brightness);
+    }
     PageUtils.routeObserver.subscribe(
       this,
       ModalRoute.of(context) as PageRoute,
@@ -97,19 +107,85 @@ class _MainAppState extends State<MainApp>
   }
 
   @override
+  void onWindowMaximize() {
+    _setting.put(SettingBoxKey.isWindowMaximized, true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    _setting.put(SettingBoxKey.isWindowMaximized, false);
+  }
+
+  @override
+  Future<void> onWindowMoved() async {
+    final Offset offset = await windowManager.getPosition();
+    _setting.put(SettingBoxKey.windowPosition, [offset.dx, offset.dy]);
+  }
+
+  @override
+  Future<void> onWindowResized() async {
+    final Rect bounds = await windowManager.getBounds();
+    _setting.putAll({
+      SettingBoxKey.windowSize: [bounds.width, bounds.height],
+      SettingBoxKey.windowPosition: [bounds.left, bounds.top],
+    });
+  }
+
+  @override
   void onWindowClose() {
-    if (_mainController.minimizeOnExit) {
+    if (_mainController.showTrayIcon && _mainController.minimizeOnExit) {
       windowManager.hide();
+      _onHideWindow();
+    } else {
+      _onClose();
+    }
+  }
+
+  Future<void> _onClose() async {
+    await GStorage.compact();
+    await GStorage.close();
+    await trayManager.destroy();
+    if (Platform.isWindows) {
+      const MethodChannel('window_control').invokeMethod('closeWindow');
     } else {
       exit(0);
     }
   }
 
   @override
+  void onWindowMinimize() {
+    _onHideWindow();
+  }
+
+  @override
+  void onWindowRestore() {
+    _onShowWindow();
+  }
+
+  void _onHideWindow() {
+    if (_mainController.pauseOnMinimize) {
+      _mainController.isPlaying =
+          PlPlayerController.instance?.playerStatus.value ==
+          PlayerStatus.playing;
+      PlPlayerController.pauseIfExists();
+    }
+  }
+
+  void _onShowWindow() {
+    if (_mainController.pauseOnMinimize) {
+      if (_mainController.isPlaying) {
+        PlPlayerController.playIfExists();
+      }
+    }
+  }
+
+  @override
   Future<void> onTrayIconMouseDown() async {
     if (await windowManager.isVisible()) {
+      _onHideWindow();
       windowManager.hide();
     } else {
+      _onShowWindow();
       windowManager.show();
     }
   }
@@ -126,13 +202,15 @@ class _MainAppState extends State<MainApp>
       case 'show':
         windowManager.show();
       case 'exit':
-        exit(0);
+        _onClose();
     }
   }
 
   Future<void> _handleTray() async {
     if (Platform.isWindows) {
       await trayManager.setIcon('assets/images/logo/app_icon.ico');
+    } else {
+      await trayManager.setIcon('assets/images/logo/logo_large.png');
     }
     if (!Platform.isLinux) {
       await trayManager.setToolTip(Constants.appName);

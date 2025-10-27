@@ -44,15 +44,11 @@ class InteractiveviewerGallery extends StatefulWidget {
     this.itemBuilder,
     this.maxScale = 8,
     this.minScale = 1.0,
-    this.onPageChanged,
-    this.onDismissed,
-    this.onClose,
     required this.quality,
+    this.onClose,
   });
 
   final int quality;
-
-  final ValueChanged<bool>? onClose;
 
   /// The sources to show.
   final List<SourceModel> sources;
@@ -67,9 +63,7 @@ class InteractiveviewerGallery extends StatefulWidget {
 
   final double minScale;
 
-  final ValueChanged<int>? onPageChanged;
-
-  final ValueChanged<int>? onDismissed;
+  final VoidCallback? onClose;
 
   @override
   State<InteractiveviewerGallery> createState() =>
@@ -78,8 +72,8 @@ class InteractiveviewerGallery extends StatefulWidget {
 
 class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
     with SingleTickerProviderStateMixin {
-  PageController? _pageController;
-  TransformationController? _transformationController;
+  late final PageController _pageController;
+  late final TransformationController _transformationController;
 
   /// The controller to animate the transformation value of the
   /// [InteractiveViewer] when it should reset.
@@ -109,24 +103,25 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
       duration: const Duration(milliseconds: 300),
     )..addListener(listener);
 
-    var item = widget.sources[currentIndex.value];
+    final item = widget.sources[currentIndex.value];
     if (item.sourceType == SourceType.livePhoto) {
       _onPlay(item.liveUrl!);
     }
   }
 
   void listener() {
-    _transformationController!.value = _animation?.value ?? Matrix4.identity();
+    _transformationController.value = _animation?.value ?? Matrix4.identity();
   }
 
   @override
   void dispose() {
-    widget.onClose?.call(true);
+    widget.onClose?.call();
     _player?.dispose();
-    _pageController?.dispose();
+    _pageController.dispose();
     _animationController
       ..removeListener(listener)
       ..dispose();
+    _transformationController.dispose();
     for (var item in widget.sources) {
       if (item.sourceType == SourceType.networkImage) {
         CachedNetworkImageProvider(_getActualUrl(item.url)).evict();
@@ -160,7 +155,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   /// When the left boundary has been hit after scaling up the source, the page
   /// view swiping gets enabled if it has a page to swipe to.
   void _onLeftBoundaryHit() {
-    if (!_enablePageView && _pageController!.page!.floor() > 0) {
+    if (!_enablePageView && _pageController.page!.floor() > 0) {
       setState(() {
         _enablePageView = true;
       });
@@ -171,7 +166,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   /// view swiping gets enabled if it has a page to swipe to.
   void _onRightBoundaryHit() {
     if (!_enablePageView &&
-        _pageController!.page!.floor() < widget.sources.length - 1) {
+        _pageController.page!.floor() < widget.sources.length - 1) {
       setState(() {
         _enablePageView = true;
       });
@@ -205,13 +200,12 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
     if (item.sourceType == SourceType.livePhoto) {
       _onPlay(item.liveUrl!);
     }
-    widget.onPageChanged?.call(page);
-    if (_transformationController!.value != Matrix4.identity()) {
+    if (_transformationController.value != Matrix4.identity()) {
       // animate the reset for the transformation of the interactive viewer
 
       _animation =
           Matrix4Tween(
-            begin: _transformationController!.value,
+            begin: _transformationController.value,
             end: Matrix4.identity(),
           ).animate(
             CurveTween(curve: Curves.easeOut).animate(_animationController),
@@ -227,15 +221,6 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
         : url.http2https;
   }
 
-  void onClose() {
-    if (widget.onClose != null) {
-      widget.onClose!(false);
-    } else {
-      Get.back();
-      widget.onDismissed?.call(_pageController!.page!.floor());
-    }
-  }
-
   Player? _player;
   VideoController? _videoController;
 
@@ -246,14 +231,14 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
       children: [
         InteractiveViewerBoundary(
           controller: _transformationController,
-          boundaryWidth: MediaQuery.sizeOf(context).width,
+          boundaryWidth: MediaQuery.widthOf(context),
           onScaleChanged: _onScaleChanged,
           onLeftBoundaryHit: _onLeftBoundaryHit,
           onRightBoundaryHit: _onRightBoundaryHit,
           onNoBoundaryHit: _onNoBoundaryHit,
           maxScale: widget.maxScale,
           minScale: widget.minScale,
-          onDismissed: onClose,
+          onDismissed: Get.back,
           onReset: () {
             if (!_enablePageView) {
               setState(() {
@@ -270,12 +255,13 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
             itemCount: widget.sources.length,
             itemBuilder: (BuildContext context, int index) {
               final item = widget.sources[index];
+              final isFileImg = item.sourceType == SourceType.fileImage;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => EasyThrottle.throttle(
                   'preview',
                   const Duration(milliseconds: 555),
-                  onClose,
+                  Get.back,
                 ),
                 onDoubleTapDown: (TapDownDetails details) {
                   _doubleTapLocalPosition = details.localPosition;
@@ -285,9 +271,10 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   const Duration(milliseconds: 555),
                   onDoubleTap,
                 ),
-                onLongPress: item.sourceType == SourceType.fileImage
-                    ? null
-                    : () => onLongPress(item),
+                onLongPress: !isFileImg ? () => onLongPress(item) : null,
+                onSecondaryTap: !isFileImg && !Utils.isMobile
+                    ? () => onLongPress(item)
+                    : null,
                 child: widget.itemBuilder != null
                     ? widget.itemBuilder!(
                         context,
@@ -320,83 +307,12 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                     ),
                   )
                 : null,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: onClose,
-                  ),
-                ),
-                if (widget.sources.length > 1)
-                  Align(
-                    alignment: Alignment.center,
-                    child: Obx(
-                      () => Text(
-                        "${currentIndex.value + 1}/${widget.sources.length}",
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                if (widget.sources[currentIndex.value].sourceType !=
-                    SourceType.fileImage)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: PopupMenuButton(
-                      itemBuilder: (context) {
-                        final item = widget.sources[currentIndex.value];
-                        return [
-                          if (Utils.isMobile)
-                            PopupMenuItem(
-                              onTap: () => ImageUtils.onShareImg(item.url),
-                              child: const Text("分享图片"),
-                            ),
-                          PopupMenuItem(
-                            onTap: () => Utils.copyText(item.url),
-                            child: const Text("复制链接"),
-                          ),
-                          PopupMenuItem(
-                            onTap: () => ImageUtils.downloadImg(
-                              this.context,
-                              [item.url],
-                            ),
-                            child: const Text("保存图片"),
-                          ),
-                          if (Utils.isDesktop)
-                            PopupMenuItem(
-                              onTap: () => PageUtils.launchURL(item.url),
-                              child: const Text("网页打开"),
-                            )
-                          else if (widget.sources.length > 1)
-                            PopupMenuItem(
-                              onTap: () => ImageUtils.downloadImg(
-                                this.context,
-                                widget.sources.map((item) => item.url).toList(),
-                              ),
-                              child: const Text("保存全部"),
-                            ),
-                          if (item.sourceType == SourceType.livePhoto)
-                            PopupMenuItem(
-                              onTap: () {
-                                ImageUtils.downloadLivePhoto(
-                                  context: this.context,
-                                  url: item.url,
-                                  liveUrl: item.liveUrl!,
-                                  width: item.width!,
-                                  height: item.height!,
-                                );
-                              },
-                              child: const Text("保存 Live Photo"),
-                            ),
-                        ];
-                      },
-                      child: const Icon(Icons.more_horiz, color: Colors.white),
-                    ),
-                  ),
-              ],
+            alignment: Alignment.center,
+            child: Obx(
+              () => Text(
+                "${currentIndex.value + 1}/${widget.sources.length}",
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ),
@@ -442,7 +358,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   }
 
   void onDoubleTap() {
-    Matrix4 matrix = _transformationController!.value.clone();
+    Matrix4 matrix = _transformationController.value.clone();
     double currentScale = matrix.row0.x;
 
     double targetScale = widget.minScale;
@@ -479,7 +395,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
 
     _animation =
         Matrix4Tween(
-          begin: _transformationController!.value,
+          begin: _transformationController.value,
           end: matrix,
         ).animate(
           CurveTween(curve: Curves.easeOut).animate(_animationController),

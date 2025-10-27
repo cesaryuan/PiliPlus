@@ -5,11 +5,14 @@ import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/radio_widget.dart';
 import 'package:PiliPlus/http/init.dart';
+import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/login.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/login/model.dart';
+import 'package:PiliPlus/pages/login/geetest/geetest_webview_dialog.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -25,27 +28,27 @@ class LoginPageController extends GetxController
   final TextEditingController smsCodeTextController = TextEditingController();
   final TextEditingController cookieTextController = TextEditingController();
 
-  RxMap<String, dynamic> codeInfo = RxMap<String, dynamic>({});
+  late final codeInfo =
+      LoadingState<({String authCode, String url})>.loading().obs;
 
-  late TabController tabController;
+  late final TabController tabController;
 
   late final Gt3FlutterPlugin captcha = Gt3FlutterPlugin();
 
-  CaptchaDataModel captchaData = CaptchaDataModel();
-  RxInt qrCodeLeftTime = 180.obs;
-  RxString statusQRCode = ''.obs;
+  late final CaptchaDataModel captchaData = CaptchaDataModel();
+  late final RxInt qrCodeLeftTime = 180.obs;
+  late final RxString statusQRCode = ''.obs;
 
-  late final List<Map<String, dynamic>> internationalDialingPrefix =
-      Constants.internationalDialingPrefix;
-  late Map<String, dynamic> selectedCountryCodeId =
-      internationalDialingPrefix.first;
-  String captchaKey = '';
-  RxInt smsSendCooldown = 0.obs;
-  int smsSendTimestamp = 0;
+  late var selectedCountryCodeId = Constants.internationalDialingPrefix.first;
+  late String captchaKey = '';
+  late final RxInt smsSendCooldown = 0.obs;
+  late int smsSendTimestamp = 0;
 
   // 定时器
   Timer? qrCodeTimer;
   Timer? smsSendCooldownTimer;
+
+  bool _isReq = false;
 
   @override
   void onInit() {
@@ -69,147 +72,166 @@ class LoginPageController extends GetxController
     super.onClose();
   }
 
-  void refreshQRCode() {
-    LoginHttp.getHDcode().then((res) {
-      if (res['status']) {
-        qrCodeTimer?.cancel();
-        codeInfo.addAll(res);
-        qrCodeTimer = Timer.periodic(const Duration(milliseconds: 1000), (t) {
-          qrCodeLeftTime.value = 180 - t.tick;
-          if (qrCodeLeftTime <= 0) {
-            t.cancel();
-            statusQRCode.value = '二维码已过期，请刷新';
-            qrCodeLeftTime = 0.obs;
-            return;
-          }
+  Future<void> refreshQRCode() async {
+    final res = await LoginHttp.getHDcode();
+    if (res.isSuccess) {
+      qrCodeTimer?.cancel();
+      codeInfo.value = res;
+      qrCodeTimer = Timer.periodic(const Duration(milliseconds: 1000), (t) {
+        final left = 180 - t.tick;
+        if (left <= 0) {
+          t.cancel();
+          statusQRCode.value = '二维码已过期，请刷新';
+          qrCodeLeftTime.value = 0;
+          return;
+        }
+        qrCodeLeftTime.value = left;
+        if (_isReq || tabController.index != 2) return;
 
-          LoginHttp.codePoll(codeInfo['data']['auth_code']).then((value) async {
-            if (value['status']) {
-              t.cancel();
-              statusQRCode.value = '扫码成功';
-              await setAccount(
-                value['data'],
-                value['data']['cookie_info']['cookies'],
-              );
-              Get.back();
-            } else if (value['code'] == 86038) {
-              t.cancel();
-              qrCodeLeftTime = 0.obs;
-            } else {
-              statusQRCode.value = value['msg'];
-            }
-          });
+        _isReq = true;
+        LoginHttp.codePoll(res.data.authCode).then((value) async {
+          _isReq = false;
+          if (value['status']) {
+            t.cancel();
+            statusQRCode.value = '扫码成功';
+            await setAccount(
+              value['data'],
+              value['data']['cookie_info']['cookies'],
+            );
+            Get.back();
+          } else if (value['code'] == 86038) {
+            t.cancel();
+            qrCodeLeftTime.value = 0;
+          } else {
+            statusQRCode.value = value['msg'];
+          }
         });
-      } else {
-        SmartDialog.showToast(res['msg']);
-      }
-    });
+      });
+    }
   }
 
   void _handleTabChange() {
     if (tabController.index == 2) {
-      if (qrCodeTimer == null || qrCodeTimer!.isActive == false) {
+      if (qrCodeTimer == null || !qrCodeTimer!.isActive) {
         refreshQRCode();
       }
     }
   }
 
   // 申请极验验证码
-  void getCaptcha(String? geeGt, String? geeChallenge, VoidCallback onSuccess) {
-    var registerData = Gt3RegisterData(
-      challenge: geeChallenge,
-      gt: geeGt,
-      success: true,
-    );
+  void getCaptcha(
+    String geeGt,
+    String geeChallenge,
+    VoidCallback onSuccess,
+  ) {
+    void updateCaptchaData(Map json) {
+      captchaData
+        ..validate = json['geetest_validate']
+        ..seccode = json['geetest_seccode']
+        ..geetest = GeetestData(
+          challenge: json['geetest_challenge'],
+          gt: geeGt,
+        );
+      SmartDialog.showToast('验证成功');
+      onSuccess();
+    }
 
-    captcha
-      ..addEventHandler(
-        onShow: (Map<String, dynamic> message) {},
-        onClose: (Map<String, dynamic> message) {
-          SmartDialog.showToast('关闭验证');
-        },
-        onResult: (Map<String, dynamic> message) {
-          if (kDebugMode) debugPrint("Captcha result: $message");
-          String code = message["code"];
-          if (code == "1") {
-            // 发送 message["result"] 中的数据向 B 端的业务服务接口进行查询
-            SmartDialog.showToast('验证成功');
-            captchaData
-              ..validate = message['result']['geetest_validate']
-              ..seccode = message['result']['geetest_seccode']
-              ..geetest = GeetestData(
-                challenge: message['result']['geetest_challenge'],
-                gt: geeGt,
-              );
-            onSuccess();
-          } else {
-            // 终端用户完成验证失败，自动重试 If the verification fails, it will be automatically retried.
-            if (kDebugMode) debugPrint("Captcha result code : $code");
-          }
-        },
-        onError: (Map<String, dynamic> message) {
-          SmartDialog.showToast("Captcha onError: $message");
-          String code = message["code"];
-          // 处理验证中返回的错误 Handling errors returned in verification
-          if (Platform.isAndroid) {
-            // Android 平台
-            if (code == "-2") {
-              // Dart 调用异常 Call exception
-            } else if (code == "-1") {
-              // Gt3RegisterData 参数不合法 Parameter is invalid
-            } else if (code == "201") {
-              // 网络无法访问 Network inaccessible
-            } else if (code == "202") {
-              // Json 解析错误 Analysis error
-            } else if (code == "204") {
-              // WebView 加载超时，请检查是否混淆极验 SDK   Load timed out
-            } else if (code == "204_1") {
-              // WebView 加载前端页面错误，请查看日志 Error loading front-end page, please check the log
-            } else if (code == "204_2") {
-              // WebView 加载 SSLError
-            } else if (code == "206") {
-              // gettype 接口错误或返回为 null   API error or return null
-            } else if (code == "207") {
-              // getphp 接口错误或返回为 null    API error or return null
-            } else if (code == "208") {
-              // ajax 接口错误或返回为 null      API error or return null
-            } else {
-              // 更多错误码参考开发文档  More error codes refer to the development document
-              // https://docs.geetest.com/sensebot/apirefer/errorcode/android
-            }
-          }
+    if (Utils.isDesktop) {
+      Get.dialog<Map<String, dynamic>>(
+        GeetestWebviewDialog(geeGt, geeChallenge),
+      ).then((res) {
+        if (res != null) {
+          updateCaptchaData(res);
+        }
+      });
+    } else {
+      var registerData = Gt3RegisterData(
+        challenge: geeChallenge,
+        gt: geeGt,
+        success: true,
+      );
 
-          if (Platform.isIOS) {
-            // iOS 平台
-            if (code == "-1009") {
-              // 网络无法访问 Network inaccessible
-            } else if (code == "-1004") {
-              // 无法查找到 HOST  Unable to find HOST
-            } else if (code == "-1002") {
-              // 非法的 URL  Illegal URL
-            } else if (code == "-1001") {
-              // 网络超时 Network timeout
-            } else if (code == "-999") {
-              // 请求被意外中断, 一般由用户进行取消操作导致 The interrupted request was usually caused by the user cancelling the operation
-            } else if (code == "-21") {
-              // 使用了重复的 challenge   Duplicate challenges are used
-              // 检查获取 challenge 是否进行了缓存  Check if the fetch challenge is cached
-            } else if (code == "-20") {
-              // 尝试过多, 重新引导用户触发验证即可 Try too many times, lead the user to request verification again
-            } else if (code == "-10") {
-              // 预判断时被封禁, 不会再进行图形验证 Banned during pre-judgment, and no more image captcha verification
-            } else if (code == "-2") {
-              // Dart 调用异常 Call exception
-            } else if (code == "-1") {
-              // Gt3RegisterData 参数不合法  Parameter is invalid
+      captcha
+        ..addEventHandler(
+          onShow: (Map<String, dynamic> message) {},
+          onClose: (Map<String, dynamic> message) {
+            SmartDialog.showToast('关闭验证');
+          },
+          onResult: (Map<String, dynamic> message) {
+            if (kDebugMode) debugPrint("Captcha result: $message");
+            final String code = message["code"];
+            if (code == "1") {
+              // 发送 message["result"] 中的数据向 B 端的业务服务接口进行查询
+              updateCaptchaData(message['result']);
             } else {
-              // 更多错误码参考开发文档 More error codes refer to the development document
-              // https://docs.geetest.com/sensebot/apirefer/errorcode/ios
+              // 终端用户完成验证失败，自动重试 If the verification fails, it will be automatically retried.
+              if (kDebugMode) debugPrint("Captcha result code : $code");
             }
-          }
-        },
-      )
-      ..startCaptcha(registerData);
+          },
+          onError: (Map<String, dynamic> message) {
+            SmartDialog.showToast("Captcha onError: $message");
+            String code = message["code"];
+            // 处理验证中返回的错误 Handling errors returned in verification
+            if (Platform.isAndroid) {
+              // Android 平台
+              if (code == "-2") {
+                // Dart 调用异常 Call exception
+              } else if (code == "-1") {
+                // Gt3RegisterData 参数不合法 Parameter is invalid
+              } else if (code == "201") {
+                // 网络无法访问 Network inaccessible
+              } else if (code == "202") {
+                // Json 解析错误 Analysis error
+              } else if (code == "204") {
+                // WebView 加载超时，请检查是否混淆极验 SDK   Load timed out
+              } else if (code == "204_1") {
+                // WebView 加载前端页面错误，请查看日志 Error loading front-end page, please check the log
+              } else if (code == "204_2") {
+                // WebView 加载 SSLError
+              } else if (code == "206") {
+                // gettype 接口错误或返回为 null   API error or return null
+              } else if (code == "207") {
+                // getphp 接口错误或返回为 null    API error or return null
+              } else if (code == "208") {
+                // ajax 接口错误或返回为 null      API error or return null
+              } else {
+                // 更多错误码参考开发文档  More error codes refer to the development document
+                // https://docs.geetest.com/sensebot/apirefer/errorcode/android
+              }
+            }
+
+            if (Platform.isIOS) {
+              // iOS 平台
+              if (code == "-1009") {
+                // 网络无法访问 Network inaccessible
+              } else if (code == "-1004") {
+                // 无法查找到 HOST  Unable to find HOST
+              } else if (code == "-1002") {
+                // 非法的 URL  Illegal URL
+              } else if (code == "-1001") {
+                // 网络超时 Network timeout
+              } else if (code == "-999") {
+                // 请求被意外中断, 一般由用户进行取消操作导致 The interrupted request was usually caused by the user cancelling the operation
+              } else if (code == "-21") {
+                // 使用了重复的 challenge   Duplicate challenges are used
+                // 检查获取 challenge 是否进行了缓存  Check if the fetch challenge is cached
+              } else if (code == "-20") {
+                // 尝试过多, 重新引导用户触发验证即可 Try too many times, lead the user to request verification again
+              } else if (code == "-10") {
+                // 预判断时被封禁, 不会再进行图形验证 Banned during pre-judgment, and no more image captcha verification
+              } else if (code == "-2") {
+                // Dart 调用异常 Call exception
+              } else if (code == "-1") {
+                // Gt3RegisterData 参数不合法  Parameter is invalid
+              } else {
+                // 更多错误码参考开发文档 More error codes refer to the development document
+                // https://docs.geetest.com/sensebot/apirefer/errorcode/ios
+              }
+            }
+          },
+        )
+        ..startCaptcha(registerData);
+    }
   }
 
   // cookie登录
@@ -290,6 +312,9 @@ class LoginPageController extends GetxController
       }
       if (data['status'] == 2) {
         SmartDialog.showToast(data['message']);
+        if (Platform.isLinux) {
+          return;
+        }
         // return;
         //{"code":0,"message":"0","ttl":1,"data":{"status":2,"message":"本次登录环境存在风险, 需使用手机号进行验证或绑定","url":"https://passport.bilibili.com/h5-app/passport/risk/verify?tmp_token=9e785433940891dfa78f033fb7928181&request_id=e5a6d6480df04097870be56c6e60f7ef&source=risk","token_info":null,"cookie_info":null,"sso":null,"is_new":false,"is_tourist":false}}
         String url = data['url']!;
@@ -313,6 +338,7 @@ class LoginPageController extends GetxController
           SmartDialog.showToast("当前账号未支持手机号验证，请尝试其它登录方式");
           return;
         }
+
         TextEditingController textFieldController = TextEditingController();
         String captchaKey = '';
         Get.dialog(
@@ -348,10 +374,8 @@ class LoginPageController extends GetxController
                     hintText: "请输入短信验证码",
                     hintStyle: const TextStyle(fontSize: 15),
                     suffixIcon: iconButton(
-                      context: Get.context!,
-                      icon: Icons.clear,
+                      icon: const Icon(Icons.clear),
                       size: 32,
-                      bgColor: Colors.transparent,
                       onPressed: textFieldController.clear,
                     ),
                     suffixIconConstraints: const BoxConstraints(
@@ -374,8 +398,8 @@ class LoginPageController extends GetxController
                       "(${preCaptureRes['code']}) ${preCaptureRes['msg']} ${preCaptureRes['data']}",
                     );
                   }
-                  String? geeGt = preCaptureRes['data']['gee_gt'];
-                  String? geeChallenge = preCaptureRes['data']['gee_challenge'];
+                  String geeGt = preCaptureRes['data']['gee_gt'];
+                  String geeChallenge = preCaptureRes['data']['gee_challenge'];
                   captchaData.token = preCaptureRes['data']['recaptcha_token'];
                   if (!isGeeArgumentValid(geeGt, geeChallenge)) {
                     SmartDialog.showToast(
@@ -474,7 +498,7 @@ class LoginPageController extends GetxController
               ),
             ],
           ),
-        );
+        ).whenComplete(textFieldController.dispose);
 
         return;
       }
@@ -493,7 +517,7 @@ class LoginPageController extends GetxController
         case 0:
           // login success
           break;
-        case -105:
+        case -105 when (!Platform.isLinux):
           String captureUrl = res['data']['url'];
           Uri captureUri = Uri.parse(captureUrl);
           captchaData.token = captureUri.queryParameters['recaptcha_token']!;
@@ -540,7 +564,7 @@ class LoginPageController extends GetxController
       tel: telTextController.text,
       code: smsCodeTextController.text,
       captchaKey: captchaKey,
-      cid: selectedCountryCodeId['country_id'],
+      cid: selectedCountryCodeId.countryId,
       key: key,
     );
     if (res['status']) {
@@ -603,7 +627,7 @@ class LoginPageController extends GetxController
 
     var res = await LoginHttp.sendSmsCode(
       tel: telTextController.text,
-      cid: selectedCountryCodeId['country_id'],
+      cid: selectedCountryCodeId.countryId,
       // deviceTouristId: guestId,
       geeValidate: captchaData.validate,
       geeSeccode: captchaData.seccode,
@@ -663,7 +687,7 @@ class LoginPageController extends GetxController
             return;
           }
 
-          getCaptcha(geeGt, geeChallenge, sendSmsCode);
+          getCaptcha(geeGt!, geeChallenge!, sendSmsCode);
           break;
         default:
           SmartDialog.showToast(res['msg']);
@@ -685,7 +709,11 @@ class LoginPageController extends GetxController
       tokenInfo['refresh_token'],
     );
     await Future.wait([account.onChange(), AnonymousAccount().delete()]);
-    Accounts.accountMode.updateAll((_, a) => a == account ? account : a);
+    for (int i = 0; i < AccountType.values.length; i++) {
+      if (Accounts.accountMode[i].mid == account.mid) {
+        Accounts.accountMode[i] = account;
+      }
+    }
     if (Accounts.main.isLogin) {
       SmartDialog.showToast('登录成功');
     } else {
@@ -699,7 +727,7 @@ class LoginPageController extends GetxController
       SmartDialog.showToast('请先登录');
       return Get.toNamed('/loginPage');
     }
-    final selectAccount = Map.of(Accounts.accountMode);
+    final selectAccount = List.of(Accounts.accountMode);
     final options = {
       AnonymousAccount(): '0',
       ...Accounts.account.toMap().map(
@@ -724,9 +752,9 @@ class LoginPageController extends GetxController
                 .map(
                   (e) => Builder(
                     builder: (context) => RadioGroup(
-                      groupValue: selectAccount[e],
+                      groupValue: selectAccount[e.index],
                       onChanged: (v) {
-                        selectAccount[e] = v!;
+                        selectAccount[e.index] = v!;
                         (context as Element).markNeedsBuild();
                       },
                       child: WrapRadioOptionsGroup<Account>(
@@ -751,9 +779,9 @@ class LoginPageController extends GetxController
           ),
           TextButton(
             onPressed: () {
-              for (var i in selectAccount.entries) {
-                if (i.value != Accounts.get(i.key)) {
-                  Accounts.set(i.key, i.value);
+              for (var (i, v) in selectAccount.indexed) {
+                if (v != Accounts.accountMode[i]) {
+                  Accounts.set(AccountType.values[i], v);
                 }
               }
               Get.back();

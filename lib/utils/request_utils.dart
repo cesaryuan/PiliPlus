@@ -22,8 +22,10 @@ import 'package:PiliPlus/pages/common/multi_select/multi_select_controller.dart'
 import 'package:PiliPlus/pages/dynamics_tab/controller.dart';
 import 'package:PiliPlus/pages/group_panel/view.dart';
 import 'package:PiliPlus/pages/later/controller.dart';
+import 'package:PiliPlus/pages/login/geetest/geetest_webview_dialog.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/context_ext.dart';
+import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -35,7 +37,7 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart' hide ContextExtensionss;
 import 'package:gt3_flutter_plugin/gt3_flutter_plugin.dart';
 
-class RequestUtils {
+abstract class RequestUtils {
   static Future<void> syncHistoryStatus() async {
     final account = Accounts.history;
     if (!account.isLogin) {
@@ -285,7 +287,7 @@ class RequestUtils {
   static Future<void> insertCreatedDyn(dynamic id) async {
     try {
       if (id != null) {
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 450));
         var res = await DynamicsHttp.dynamicDetail(id: id);
         if (res.isSuccess) {
           final ctr = Get.find<DynamicsTabController>(tag: 'all');
@@ -317,31 +319,36 @@ class RequestUtils {
             await Future.delayed(const Duration(seconds: 5));
           }
           var res = await DynamicsHttp.dynamicDetail(id: id, clearCookie: true);
-          bool isBan = !res.isSuccess;
+          final isSuccess = res.isSuccess;
           Get.dialog(
+            barrierDismissible: isManual,
             AlertDialog(
               title: const Text('动态检查结果'),
               content: SelectableText(
-                '${!isBan ? '无账号状态下找到了你的动态，动态正常！' : '你的动态被shadow ban（仅自己可见）！'}${dynText != null ? ' \n\n动态内容: $dynText' : ''}',
+                '${isSuccess ? '无账号状态下找到了你的动态，动态正常！' : '你的动态被shadow ban（仅自己可见）！'}${dynText != null ? ' \n\n动态内容: $dynText' : ''}',
               ),
-              actions: isBan
-                  ? [
-                      TextButton(
-                        onPressed: () {
-                          Get.back();
-                          Utils.copyText('https://www.bilibili.com/opus/$id');
-                          Get.toNamed(
-                            '/webview',
-                            parameters: {
-                              'url':
-                                  'https://www.bilibili.com/h5/comment/appeal?native.theme=2&night=${Get.isDarkMode ? 1 : 0}',
-                            },
-                          );
+              actions: [
+                if (!isSuccess)
+                  TextButton(
+                    onPressed: () {
+                      Get.back();
+                      Utils.copyText('https://www.bilibili.com/opus/$id');
+                      Get.toNamed(
+                        '/webview',
+                        parameters: {
+                          'url':
+                              'https://www.bilibili.com/h5/comment/appeal?native.theme=2&night=${Get.isDarkMode ? 1 : 0}',
                         },
-                        child: const Text('申诉'),
-                      ),
-                    ]
-                  : null,
+                      );
+                    },
+                    child: const Text('申诉'),
+                  ),
+                if (!isManual)
+                  TextButton(
+                    onPressed: Get.back,
+                    child: const Text('关闭'),
+                  ),
+              ],
             ),
           );
         }
@@ -478,26 +485,32 @@ class RequestUtils {
     String vVoucher,
     ValueChanged<String> onSuccess,
   ) async {
+    if (Platform.isLinux) {
+      return;
+    }
+
     final res = await ValidateHttp.gaiaVgateRegister(vVoucher);
     if (!res['status']) {
       SmartDialog.showToast("${res['msg']}");
       return;
     }
 
-    if (res['data'] == null) {
+    final resData = res['data'];
+    if (resData == null) {
       SmartDialog.showToast("null data");
       return;
     }
 
     CaptchaDataModel captchaData = CaptchaDataModel();
 
-    String? geeGt = res['data']?['geetest']?['gt'];
-    String? geeChallenge = res['data']?['geetest']?['challenge'];
-    captchaData.token = res['data']?['token'];
+    final geetest = resData?['geetest'];
+    String? gt = geetest?['gt'];
+    String? challenge = geetest?['challenge'];
+    captchaData.token = resData?['token'];
 
     bool isGeeArgumentValid() {
-      return geeGt?.isNotEmpty == true &&
-          geeChallenge?.isNotEmpty == true &&
+      return gt?.isNotEmpty == true &&
+          challenge?.isNotEmpty == true &&
           captchaData.token?.isNotEmpty == true;
     }
 
@@ -506,9 +519,47 @@ class RequestUtils {
       return;
     }
 
+    Future<void> gaiaVgateValidate() async {
+      final res = await ValidateHttp.gaiaVgateValidate(
+        challenge: captchaData.geetest?.challenge,
+        seccode: captchaData.seccode,
+        token: captchaData.token,
+        validate: captchaData.validate,
+      );
+      if (res['status']) {
+        if (res['data']?['is_valid'] == 1) {
+          final griskId = res['data']?['grisk_id'];
+          if (griskId != null) {
+            onSuccess(griskId);
+          }
+        } else {
+          SmartDialog.showToast('invalid');
+        }
+      } else {
+        SmartDialog.showToast(res['msg']);
+      }
+    }
+
+    if (Utils.isDesktop) {
+      final json = await Get.dialog<Map<String, dynamic>>(
+        GeetestWebviewDialog(gt!, challenge!),
+      );
+      if (json != null) {
+        captchaData
+          ..validate = json['geetest_validate']
+          ..seccode = json['geetest_seccode']
+          ..geetest = GeetestData(
+            challenge: json['geetest_challenge'],
+            gt: gt,
+          );
+        gaiaVgateValidate();
+      }
+      return;
+    }
+
     var registerData = Gt3RegisterData(
-      challenge: geeChallenge,
-      gt: geeGt,
+      challenge: challenge,
+      gt: gt,
       success: true,
     );
 
@@ -523,28 +574,15 @@ class RequestUtils {
           if (code == "1") {
             // 发送 message["result"] 中的数据向 B 端的业务服务接口进行查询
             SmartDialog.showToast('验证成功');
+            final result = message['result'];
             captchaData
-              ..validate = message['result']?['geetest_validate']
-              ..seccode = message['result']?['geetest_seccode'];
-            String? challenge = message['result']?['geetest_challenge'];
-            final res = await ValidateHttp.gaiaVgateValidate(
-              challenge: challenge,
-              seccode: captchaData.seccode,
-              token: captchaData.token,
-              validate: captchaData.validate,
-            );
-            if (res['status']) {
-              if (res['data']?['is_valid'] == 1) {
-                final griskId = res['data']?['grisk_id'];
-                if (griskId != null) {
-                  onSuccess(griskId);
-                }
-              } else {
-                SmartDialog.showToast('invalid');
-              }
-            } else {
-              SmartDialog.showToast(res['msg']);
-            }
+              ..validate = result?['geetest_validate']
+              ..seccode = result?['geetest_seccode']
+              ..geetest = GeetestData(
+                challenge: result?['geetest_challenge'],
+                gt: gt!,
+              );
+            gaiaVgateValidate();
           } else {
             // 终端用户完成验证失败，自动重试 If the verification fails, it will be automatically retried.
             if (kDebugMode) debugPrint("Captcha result code : $code");
@@ -613,5 +651,29 @@ class RequestUtils {
         },
       )
       ..startCaptcha(registerData);
+  }
+
+  static Future<void> showUserRealName(String mid) async {
+    final res = await UserHttp.getUserRealName(mid);
+    if (res.isSuccess) {
+      final data = res.data;
+      final show = !data.name.isNullOrEmpty;
+      Get.dialog(
+        AlertDialog(
+          title: SelectableText(
+            show ? data.name! : data.rejectPage?.title ?? '',
+          ),
+          content: show ? null : Text(data.rejectPage?.text ?? ''),
+          actions: [
+            TextButton(
+              onPressed: Get.back,
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      res.toast();
+    }
   }
 }

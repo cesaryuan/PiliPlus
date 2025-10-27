@@ -51,9 +51,29 @@ class AccountManager extends Interceptor {
       Api.getSeasonDetailApi,
       Api.liveRoomDmToken,
       Api.liveRoomDmPrefetch,
+      Api.superChatMsg,
       Api.searchByType,
       Api.dynSearch,
       Api.searchArchive,
+
+      // Api.memberInfo,
+      // Api.bgmDetail,
+      // Api.space,
+      // Api.spaceAudio,
+      // Api.spaceComic,
+      // Api.spaceArchive,
+      // Api.spaceChargingArchive,
+      // Api.spaceSeason,
+      // Api.spaceSeries,
+      // Api.spaceBangumi,
+      // Api.spaceOpus,
+      // Api.spaceFav,
+      // Api.seasonSeries,
+      // Api.matchInfo,
+      // Api.articleList,
+      // Api.opusDetail,
+      // Api.articleView,
+      // Api.articleInfo,
     },
     AccountType.recommend: {
       Api.recommendListWeb,
@@ -68,6 +88,22 @@ class AccountManager extends Interceptor {
       Api.liveList,
       Api.searchTrending,
       Api.searchRecommend,
+      Api.getRankApi,
+      Api.pgcRank,
+      Api.pgcSeasonRank,
+      Api.pgcIndexResult,
+      Api.popularSeriesOne,
+      Api.popularSeriesList,
+      Api.popularPrecious,
+      Api.liveAreaList,
+      Api.liveFeedIndex,
+      Api.liveSecondList,
+      Api.liveRoomAreaList,
+      Api.liveSearch,
+      Api.bgmRecommend,
+      Api.dynTopicRcmd,
+      Api.topicFeed,
+      Api.topicTop,
     },
     // progress
     AccountType.video: {
@@ -126,7 +162,7 @@ class AccountManager extends Interceptor {
       options.path = path.replaceAll('#progress#', '');
     }
 
-    if (_skipCookie(path) || account is NoAccount) return handler.next(options);
+    if (account is NoAccount || _skipCookie(path)) return handler.next(options);
 
     if (!account.isLogin && path == Api.heartBeat) {
       return handler.reject(
@@ -189,22 +225,28 @@ class AccountManager extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    final path = response.requestOptions.path;
-    if (path.startsWith(HttpString.appBaseUrl) || _skipCookie(path)) {
+    final options = response.requestOptions;
+    final path = options.path;
+    if (path.startsWith(HttpString.appBaseUrl) ||
+        _skipCookie(path) ||
+        options.extra['account'] is NoAccount) {
       return handler.next(response);
     } else {
-      _saveCookies(
+      final future = _saveCookies(
         response,
-      ).whenComplete(() => handler.next(response)).catchError(
-        (dynamic e, StackTrace s) {
-          final error = DioException(
-            requestOptions: response.requestOptions,
-            error: e,
-            stackTrace: s,
-          );
-          handler.reject(error, true);
-        },
-      );
+      ).whenComplete(() => handler.next(response));
+      assert(() {
+        future.catchError(
+          (Object e, StackTrace s) {
+            throw DioException(
+              requestOptions: response.requestOptions,
+              error: e,
+              stackTrace: s,
+            );
+          },
+        );
+        return true;
+      }());
     }
   }
 

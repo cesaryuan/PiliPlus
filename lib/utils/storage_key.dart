@@ -1,6 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
-class SettingBoxKey {
+abstract class SettingBoxKey {
   static const String btmProgressBehavior = 'btmProgressBehavior',
       defaultVideoSpeed = 'defaultVideoSpeed',
       autoUpgradeEnable = 'autoUpgradeEnable',
@@ -24,7 +24,11 @@ class SettingBoxKey {
       enableAutoEnter = 'enableAutoEnter',
       enableAutoExit = 'enableAutoExit',
       enableOnlineTotal = 'enableOnlineTotal',
-      showSuperChat = 'showSuperChat';
+      showSuperChat = 'showSuperChat',
+      keyboardControl = 'keyboardControl',
+      pauseOnMinimize = 'pauseOnMinimize',
+      pgcSkipType = 'pgcSkipType',
+      audioPlayMode = 'audioPlayMode';
 
   static const String enableVerticalExpand = 'enableVerticalExpand',
       feedBackEnable = 'feedBackEnable',
@@ -91,6 +95,7 @@ class SettingBoxKey {
       refreshDisplacement = 'refreshDisplacement',
       showHotRcmd = 'showHotRcmd',
       audioNormalization = 'audioNormalization',
+      fallbackNormalization = 'fallbackNormalization',
       superResolutionType = 'superResolutionType',
       preInitPlayer = 'preInitPlayer',
       mainTabBarView = 'mainTabBarView',
@@ -136,7 +141,16 @@ class SettingBoxKey {
       showFsLockBtn = 'showFsLockBtn',
       silentDownImg = 'silentDownImg',
       showMemberShop = 'showMemberShop',
-      minimizeOnExit = 'minimizeOnExit';
+      enablePlayAll = 'enablePlayAll',
+      enableTapDm = 'enableTapDm';
+
+  static const String minimizeOnExit = 'minimizeOnExit',
+      windowSize = 'windowSize',
+      windowPosition = 'windowPosition',
+      isWindowMaximized = 'isWindowMaximized',
+      showWindowTitleBar = 'showWindowTitleBar',
+      desktopVolume = 'desktopVolume',
+      showTrayIcon = 'showTrayIcon';
 
   static const String subtitlePreferenceV2 = 'subtitlePreferenceV2',
       enableDragSubtitle = 'enableDragSubtitle',
@@ -163,6 +177,7 @@ class SettingBoxKey {
       blockTrack = 'blockTrack';
 
   static const String enableShowDanmaku = 'enableShowDanmaku',
+      enableShowLiveDanmaku = 'enableShowLiveDanmaku',
       pipNoDanmaku = 'pipNoDanmaku',
       showVipDanmaku = 'showVipDanmaku',
       showSpecialDanmaku = 'showSpecialDanmaku',
@@ -210,7 +225,7 @@ class SettingBoxKey {
       reduceLuxColor = 'reduceLuxColor';
 }
 
-class LocalCacheKey {
+abstract class LocalCacheKey {
   static const String historyPause = 'historyPause',
       blackMids = 'blackMids',
       danmakuFilterRules = 'danmakuFilterRules',
@@ -219,7 +234,7 @@ class LocalCacheKey {
       buvid = 'buvid';
 }
 
-class VideoBoxKey {
+abstract class VideoBoxKey {
   static const String videoFit = 'videoFit',
       videoBrightness = 'videoBrightness',
       videoSpeed = 'videoSpeed',

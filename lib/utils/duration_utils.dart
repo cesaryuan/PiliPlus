@@ -1,6 +1,6 @@
 import 'dart:math' show pow;
 
-class DurationUtils {
+abstract class DurationUtils {
   static String formatDuration(num? seconds) {
     if (seconds == null || seconds == 0) {
       return '00:00';
@@ -17,11 +17,12 @@ class DurationUtils {
         : "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:$sms";
   }
 
+  static final _splitRegex = RegExp(r'[:：]');
   static int parseDuration(String? data) {
     if (data == null || data.isEmpty) {
       return 0;
     }
-    List<int> split = data.split(':').reversed.map(int.parse).toList();
+    List<int> split = data.split(_splitRegex).reversed.map(int.parse).toList();
     int duration = 0;
     for (int i = 0; i < split.length; i++) {
       duration += split[i] * pow(60, i).toInt();

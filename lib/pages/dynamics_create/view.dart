@@ -147,7 +147,7 @@ class _CreateDynPanelState extends CommonRichTextPubPageState<CreateDynPanel> {
                                   child: Padding(
                                     padding: const EdgeInsets.only(right: 5),
                                     child: Icon(
-                                      CustomIcon.topic_tag,
+                                      CustomIcons.topic_tag,
                                       size: 18,
                                       color: hasTopic
                                           ? null
@@ -171,8 +171,7 @@ class _CreateDynPanelState extends CommonRichTextPubPageState<CreateDynPanel> {
                           iconButton(
                             size: 22,
                             iconSize: 16,
-                            context: context,
-                            icon: Icons.clear,
+                            icon: const Icon(Icons.clear),
                             bgColor: theme.colorScheme.onInverseSurface,
                             iconColor: theme.colorScheme.onSurfaceVariant,
                             onPressed: () => topic.value = null,
@@ -604,7 +603,7 @@ class _CreateDynPanelState extends CommonRichTextPubPageState<CreateDynPanel> {
         children: [
           item(
             onTap: _onReserve,
-            icon: Icon(CustomIcon.live_reserve, size: 28, color: color),
+            icon: Icon(CustomIcons.live_reserve, size: 28, color: color),
             title: '直播预约',
           ),
         ],
@@ -804,12 +803,10 @@ class _CreateDynPanelState extends CommonRichTextPubPageState<CreateDynPanel> {
               right: 18,
               top: 2,
               child: iconButton(
-                context: context,
                 size: 30,
                 iconSize: 18,
-                icon: Icons.clear,
+                icon: const Icon(Icons.clear),
                 onPressed: () => _reserveCard.value = null,
-                bgColor: Colors.transparent,
                 iconColor: theme.colorScheme.onSurfaceVariant,
               ),
             ),

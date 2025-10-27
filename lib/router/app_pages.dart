@@ -1,6 +1,7 @@
 import 'package:PiliPlus/pages/about/view.dart';
 import 'package:PiliPlus/pages/article/view.dart';
 import 'package:PiliPlus/pages/article_list/view.dart';
+import 'package:PiliPlus/pages/audio/view.dart';
 import 'package:PiliPlus/pages/blacklist/view.dart';
 import 'package:PiliPlus/pages/danmaku_block/view.dart';
 import 'package:PiliPlus/pages/dynamics/view.dart';
@@ -15,6 +16,8 @@ import 'package:PiliPlus/pages/fav_detail/view.dart';
 import 'package:PiliPlus/pages/fav_search/view.dart';
 import 'package:PiliPlus/pages/follow/view.dart';
 import 'package:PiliPlus/pages/follow_search/view.dart';
+import 'package:PiliPlus/pages/follow_type/follow_same/view.dart';
+import 'package:PiliPlus/pages/follow_type/followed/view.dart';
 import 'package:PiliPlus/pages/history/view.dart';
 import 'package:PiliPlus/pages/history_search/view.dart';
 import 'package:PiliPlus/pages/home/view.dart';
@@ -25,6 +28,7 @@ import 'package:PiliPlus/pages/live_dm_block/view.dart';
 import 'package:PiliPlus/pages/live_room/view.dart';
 import 'package:PiliPlus/pages/login/view.dart';
 import 'package:PiliPlus/pages/main/view.dart';
+import 'package:PiliPlus/pages/main_reply/view.dart';
 import 'package:PiliPlus/pages/match_info/view.dart';
 import 'package:PiliPlus/pages/member/view.dart';
 import 'package:PiliPlus/pages/member_dynamics/view.dart';
@@ -37,6 +41,8 @@ import 'package:PiliPlus/pages/msg_feed_top/like_me/view.dart';
 import 'package:PiliPlus/pages/msg_feed_top/reply_me/view.dart';
 import 'package:PiliPlus/pages/msg_feed_top/sys_msg/view.dart';
 import 'package:PiliPlus/pages/music/view.dart';
+import 'package:PiliPlus/pages/popular_precious/view.dart';
+import 'package:PiliPlus/pages/popular_series/view.dart';
 import 'package:PiliPlus/pages/search/view.dart';
 import 'package:PiliPlus/pages/search_result/view.dart';
 import 'package:PiliPlus/pages/search_trending/view.dart';
@@ -209,6 +215,18 @@ class Routes {
     ),
     CustomGetPage(name: '/createVote', page: () => const CreateVotePage()),
     CustomGetPage(name: '/musicDetail', page: () => const MusicDetailPage()),
+    CustomGetPage(
+      name: '/popularSeries',
+      page: () => const PopularSeriesPage(),
+    ),
+    CustomGetPage(
+      name: '/popularPrecious',
+      page: () => const PopularPreciousPage(),
+    ),
+    CustomGetPage(name: '/audio', page: () => const AudioPage()),
+    CustomGetPage(name: '/mainReply', page: () => const MainReplyPage()),
+    CustomGetPage(name: '/followed', page: () => const FollowedPage()),
+    CustomGetPage(name: '/sameFollowing', page: () => const FollowSamePage()),
   ];
 }
 

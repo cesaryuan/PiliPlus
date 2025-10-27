@@ -14,6 +14,7 @@ import 'package:PiliPlus/pages/pgc_review/post/view.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -82,15 +83,10 @@ class _PgcReviewChildPageState extends State<PgcReviewChildPage>
       color: theme.colorScheme.outline.withValues(alpha: 0.1),
     );
     return switch (loadingState) {
-      Loading() => SliverToBoxAdapter(
-        child: IgnorePointer(
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemBuilder: (context, index) => const VideoReplySkeleton(),
-            itemCount: 8,
-          ),
-        ),
+      Loading() => SliverPrototypeExtentList.builder(
+        prototypeItem: const VideoReplySkeleton(),
+        itemBuilder: (_, _) => const VideoReplySkeleton(),
+        itemCount: 8,
       ),
       Success(:var response) =>
         response?.isNotEmpty == true
@@ -113,6 +109,76 @@ class _PgcReviewChildPageState extends State<PgcReviewChildPage>
   }
 
   Widget _itemWidget(ThemeData theme, int index, PgcReviewItemModel item) {
+    void showMore() => showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        clipBehavior: Clip.hardEdge,
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (item.author!.mid == Accounts.main.mid) ...[
+              ListTile(
+                dense: true,
+                title: const Text(
+                  '编辑',
+                  style: TextStyle(fontSize: 14),
+                ),
+                onTap: () {
+                  Get.back();
+                  showModalBottomSheet(
+                    context: context,
+                    useSafeArea: true,
+                    isScrollControlled: true,
+                    builder: (context) {
+                      return PgcReviewPostPanel(
+                        name: widget.name,
+                        mediaId: widget.mediaId,
+                        reviewId: item.reviewId,
+                        content: item.content,
+                        score: item.score,
+                      );
+                    },
+                  );
+                },
+              ),
+              ListTile(
+                dense: true,
+                title: const Text(
+                  '删除',
+                  style: TextStyle(fontSize: 14),
+                ),
+                onTap: () {
+                  Get.back();
+                  showConfirmDialog(
+                    context: context,
+                    title: '删除短评，同时删除评分？',
+                    onConfirm: () => _controller.onDel(index, item.reviewId),
+                  );
+                },
+              ),
+            ],
+            ListTile(
+              dense: true,
+              title: const Text(
+                '举报',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () => Get
+                ..back()
+                ..toNamed(
+                  '/webview',
+                  parameters: {
+                    'url':
+                        'https://www.bilibili.com/appeal/?reviewId=${item.reviewId}&type=shortComment&mediaId=${widget.mediaId}',
+                  },
+                ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -125,78 +191,8 @@ class _PgcReviewChildPageState extends State<PgcReviewChildPage>
                 },
               )
             : null,
-        onLongPress: isLongReview
-            ? null
-            : () => showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  clipBehavior: Clip.hardEdge,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (item.author!.mid == Accounts.main.mid) ...[
-                        ListTile(
-                          dense: true,
-                          title: const Text(
-                            '编辑',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          onTap: () {
-                            Get.back();
-                            showModalBottomSheet(
-                              context: context,
-                              useSafeArea: true,
-                              isScrollControlled: true,
-                              builder: (context) {
-                                return PgcReviewPostPanel(
-                                  name: widget.name,
-                                  mediaId: widget.mediaId,
-                                  reviewId: item.reviewId,
-                                  content: item.content,
-                                  score: item.score,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        ListTile(
-                          dense: true,
-                          title: const Text(
-                            '删除',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          onTap: () {
-                            Get.back();
-                            showConfirmDialog(
-                              context: context,
-                              title: '删除短评，同时删除评分？',
-                              onConfirm: () =>
-                                  _controller.onDel(index, item.reviewId),
-                            );
-                          },
-                        ),
-                      ],
-                      ListTile(
-                        dense: true,
-                        title: const Text(
-                          '举报',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        onTap: () => Get
-                          ..back()
-                          ..toNamed(
-                            '/webview',
-                            parameters: {
-                              'url':
-                                  'https://www.bilibili.com/appeal/?reviewId=${item.reviewId}&type=shortComment&mediaId=${widget.mediaId}',
-                            },
-                          ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        onLongPress: !isLongReview ? showMore : null,
+        onSecondaryTap: !isLongReview && !Utils.isMobile ? showMore : null,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -259,13 +255,13 @@ class _PgcReviewChildPageState extends State<PgcReviewChildPage>
                               (index) {
                                 if (index <= item.score - 1) {
                                   return const Icon(
-                                    CustomIcon.star_favorite_solid,
+                                    CustomIcons.star_favorite_solid,
                                     size: 13,
                                     color: Color(0xFFFFAD35),
                                   );
                                 }
                                 return const Icon(
-                                  CustomIcon.star_favorite_line,
+                                  CustomIcons.star_favorite_line,
                                   size: 14,
                                   color: Colors.grey,
                                 );

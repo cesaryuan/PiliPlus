@@ -6,6 +6,7 @@ import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models_new/space/space_cheese/item.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 class MemberCheeseItem extends StatelessWidget {
@@ -62,22 +63,21 @@ class MemberCheeseItem extends StatelessWidget {
             bottom: -8,
             child: iconButton(
               tooltip: '移除',
-              context: context,
               onPressed: onRemove,
-              icon: Icons.clear,
+              icon: const Icon(Icons.clear),
               iconColor: theme.colorScheme.outline,
-              bgColor: Colors.transparent,
             ),
           ),
         ],
       );
     }
+    void onLongPress() => imageSaveDialog(title: item.title, cover: item.cover);
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
         onTap: () => PageUtils.viewPugv(seasonId: item.seasonId),
-        onLongPress: () =>
-            imageSaveDialog(title: item.title, cover: item.cover),
+        onLongPress: onLongPress,
+        onSecondaryTap: Utils.isMobile ? null : onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: StyleString.safeSpace,

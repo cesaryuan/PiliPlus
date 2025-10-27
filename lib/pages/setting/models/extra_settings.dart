@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'dart:math' show pi, max;
 
+import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/image/custom_grid_view.dart'
-    show ImageModel;
+    show CustomGridView, ImageModel;
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
 import 'package:PiliPlus/grpc/reply.dart';
@@ -12,6 +13,7 @@ import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/models/common/settings_type.dart';
+import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
 import 'package:PiliPlus/models/common/super_resolution_type.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
@@ -22,6 +24,7 @@ import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slide_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/cache_manage.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
@@ -31,6 +34,7 @@ import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/update.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -66,6 +70,54 @@ List<SettingsModel> get extraSettings => [
         Icon(Icons.shield_outlined),
         Icon(Icons.play_arrow_rounded, size: 15),
       ],
+    ),
+  ),
+  SettingsModel(
+    settingsType: SettingsType.normal,
+    leading: const Icon(MdiIcons.debugStepOver),
+    title: '番剧片头/片尾跳过类型',
+    getTrailing: () => Builder(
+      builder: (context) {
+        final pgcSkipType = Pref.pgcSkipType;
+        final colorScheme = ColorScheme.of(context);
+        final color = pgcSkipType == SkipType.disable
+            ? colorScheme.outline
+            : colorScheme.secondary;
+        return PopupMenuButton<SkipType>(
+          initialValue: pgcSkipType,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  pgcSkipType.title,
+                  style: TextStyle(fontSize: 14, height: 1, color: color),
+                  strutStyle: const StrutStyle(
+                    leading: 0,
+                    height: 1,
+                    fontSize: 14,
+                  ),
+                ),
+                Icon(
+                  MdiIcons.unfoldMoreHorizontal,
+                  size: MediaQuery.textScalerOf(context).scale(14),
+                  color: color,
+                ),
+              ],
+            ),
+          ),
+          onSelected: (value) async {
+            await GStorage.setting.put(SettingBoxKey.pgcSkipType, value.index);
+            if (context.mounted) {
+              (context as Element).markNeedsBuild();
+            }
+          },
+          itemBuilder: (context) => SkipType.values
+              .map((e) => PopupMenuItem(value: e, child: Text(e.title)))
+              .toList(),
+        );
+      },
     ),
   ),
   SettingsModel(
@@ -183,6 +235,14 @@ List<SettingsModel> get extraSettings => [
     defaultVal: false,
   ),
   SettingsModel(
+    settingsType: SettingsType.sw1tch,
+    title: '横屏在侧栏打开图片预览',
+    leading: const Icon(Icons.photo_outlined),
+    setKey: SettingBoxKey.horizontalPreview,
+    defaultVal: false,
+    onChanged: (value) => CustomGridView.horizontalPreview = value,
+  ),
+  SettingsModel(
     settingsType: SettingsType.normal,
     title: '评论折叠行数',
     subtitle: '0行为不折叠',
@@ -243,7 +303,7 @@ List<SettingsModel> get extraSettings => [
     title: '弹幕行高',
     subtitle: '默认1.6',
     setKey: SettingBoxKey.danmakuLineHeight,
-    leading: const Icon(Icons.subtitles_outlined),
+    leading: const Icon(CustomIcons.dm_settings),
     getTrailing: () => Text(
       Pref.danmakuLineHeight.toString(),
       style: Get.theme.textTheme.titleSmall,
@@ -327,13 +387,6 @@ List<SettingsModel> get extraSettings => [
     leading: Icon(Icons.local_parking),
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,
-  ),
-  const SettingsModel(
-    settingsType: SettingsType.sw1tch,
-    title: '横屏在侧栏打开图片预览',
-    leading: Icon(Icons.photo_outlined),
-    setKey: SettingBoxKey.horizontalPreview,
-    defaultVal: false,
   ),
   getBanwordModel(
     context: Get.context!,
@@ -451,94 +504,27 @@ List<SettingsModel> get extraSettings => [
       } catch (_) {}
     },
   ),
-  SettingsModel(
-    settingsType: SettingsType.normal,
-    title: '音量均衡',
-    setKey: SettingBoxKey.audioNormalization,
-    leading: const Icon(Icons.multitrack_audio),
-    getSubtitle: () {
-      String audioNormalization = Pref.audioNormalization;
-      // TODO: remove next version
-      if (audioNormalization == '2') {
-        GStorage.setting.put(SettingBoxKey.audioNormalization, '1');
-        audioNormalization = '1';
-      }
-      audioNormalization = switch (audioNormalization) {
-        '0' => AudioNormalization.disable.title,
-        '1' => AudioNormalization.dynaudnorm.title,
-        _ => audioNormalization,
-      };
-      return '当前:「$audioNormalization」';
-    },
-    onTap: (setState) async {
-      String? result = await showDialog(
-        context: Get.context!,
-        builder: (context) {
-          String audioNormalization = Pref.audioNormalization;
-          final values = {'0', '1', audioNormalization, '2'};
-          return SelectDialog<String>(
-            title: '音量均衡',
-            value: audioNormalization,
-            values: values
-                .map(
-                  (e) => (
-                    e,
-                    switch (e) {
-                      '0' => AudioNormalization.disable.title,
-                      '1' => AudioNormalization.dynaudnorm.title,
-                      '2' => AudioNormalization.custom.title,
-                      _ => e,
-                    },
-                  ),
-                )
-                .toList(),
-          );
-        },
-      );
-      if (result != null) {
-        if (result == '2') {
-          String param = '';
-          showDialog(
-            context: Get.context!,
-            builder: (context) {
-              return AlertDialog(
-                title: const Text('自定义参数'),
-                content: TextField(
-                  autofocus: true,
-                  onChanged: (value) => param = value,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: Get.back,
-                    child: Text(
-                      '取消',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      Get.back();
-                      await GStorage.setting.put(
-                        SettingBoxKey.audioNormalization,
-                        param,
-                      );
-                      setState();
-                    },
-                    child: const Text('确定'),
-                  ),
-                ],
-              );
-            },
-          );
+  if (kDebugMode || Platform.isAndroid)
+    SettingsModel(
+      settingsType: SettingsType.normal,
+      title: '音量均衡',
+      setKey: SettingBoxKey.audioNormalization,
+      leading: const Icon(Icons.multitrack_audio),
+      getSubtitle: () {
+        final audioNormalization = AudioNormalization.getTitleFromConfig(
+          Pref.audioNormalization,
+        );
+        String fallback = Pref.fallbackNormalization;
+        if (fallback == '0') {
+          fallback = '';
         } else {
-          await GStorage.setting.put(SettingBoxKey.audioNormalization, result);
-          setState();
+          fallback =
+              '，无参数时:「${AudioNormalization.getTitleFromConfig(fallback)}」';
         }
-      }
-    },
-  ),
+        return '当前:「$audioNormalization」$fallback';
+      },
+      onTap: audioNormalization,
+    ),
   SettingsModel(
     settingsType: SettingsType.normal,
     title: '超分辨率',
@@ -714,7 +700,7 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.slideDismissReplyPage,
     defaultVal: Platform.isIOS,
     onChanged: (value) {
-      CommonSlidePageState.slideDismissReplyPage = value;
+      CommonSlideMixin.slideDismissReplyPage = value;
     },
   ),
   const SettingsModel(
@@ -788,7 +774,7 @@ List<SettingsModel> get extraSettings => [
     subtitle: '是否展示搜索框默认词',
     leading: const Icon(Icons.whatshot_outlined),
     setKey: SettingBoxKey.enableSearchWord,
-    defaultVal: true,
+    defaultVal: false,
     onChanged: (val) {
       try {
         final controller = Get.find<HomeController>()..enableSearchWord = val;
@@ -1044,37 +1030,30 @@ List<SettingsModel> get extraSettings => [
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 6),
-                TextField(
-                  decoration: InputDecoration(
+                TextFormField(
+                  initialValue: systemProxyHost,
+                  decoration: const InputDecoration(
                     isDense: true,
-                    labelText: systemProxyHost != ''
-                        ? systemProxyHost
-                        : '请输入Host，使用 . 分割',
-                    border: const OutlineInputBorder(
+                    labelText: '请输入Host，使用 . 分割',
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(6)),
                     ),
-                    hintText: systemProxyHost,
                   ),
-                  onChanged: (e) {
-                    systemProxyHost = e;
-                  },
+                  onChanged: (e) => systemProxyHost = e,
                 ),
                 const SizedBox(height: 10),
-                TextField(
+                TextFormField(
+                  initialValue: systemProxyPort,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     isDense: true,
-                    labelText: systemProxyPort != ''
-                        ? systemProxyPort
-                        : '请输入Port',
-                    border: const OutlineInputBorder(
+                    labelText: '请输入Port',
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(6)),
                     ),
-                    hintText: systemProxyPort,
                   ),
-                  onChanged: (e) {
-                    systemProxyPort = e;
-                  },
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (e) => systemProxyPort = e,
                 ),
               ],
             ),
@@ -1186,3 +1165,99 @@ List<SettingsModel> get extraSettings => [
     },
   ),
 ];
+
+Future<void> audioNormalization(
+  VoidCallback setState, {
+  bool fallback = false,
+}) async {
+  final key = fallback
+      ? SettingBoxKey.fallbackNormalization
+      : SettingBoxKey.audioNormalization;
+  final result = await showDialog<String>(
+    context: Get.context!,
+    builder: (context) {
+      String audioNormalization = fallback
+          ? Pref.fallbackNormalization
+          : Pref.audioNormalization;
+      Set<String> values = {
+        '0',
+        '1',
+        if (!fallback) '2',
+        audioNormalization,
+        '3',
+      };
+      return SelectDialog<String>(
+        title: fallback ? '服务器无loudnorm配置时使用' : '音量均衡',
+        toggleable: true,
+        value: audioNormalization,
+        values: values
+            .map(
+              (e) => (
+                e,
+                switch (e) {
+                  '0' => AudioNormalization.disable.title,
+                  '1' => AudioNormalization.dynaudnorm.title,
+                  '2' => AudioNormalization.loudnorm.title,
+                  '3' => AudioNormalization.custom.title,
+                  _ => e,
+                },
+              ),
+            )
+            .toList(),
+      );
+    },
+  );
+  if (result != null) {
+    if (result == '3') {
+      String param = '';
+      await showDialog(
+        context: Get.context!,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('自定义参数'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 16,
+              children: [
+                const Text('等同于 --lavfi-complex="[aid1] 参数 [ao]"'),
+                TextField(
+                  autofocus: true,
+                  onChanged: (value) => param = value,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: Get.back,
+                child: Text(
+                  '取消',
+                  style: TextStyle(
+                    color: ColorScheme.of(context).outline,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Get.back();
+                  await GStorage.setting.put(key, param);
+                  if (!fallback &&
+                      PlPlayerController.loudnormRegExp.hasMatch(param)) {
+                    audioNormalization(setState, fallback: true);
+                  }
+                  setState();
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      await GStorage.setting.put(key, result);
+      if (result == '2') {
+        audioNormalization(setState, fallback: true);
+      }
+      setState();
+    }
+  }
+}

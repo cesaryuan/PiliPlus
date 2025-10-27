@@ -70,8 +70,7 @@ class Request {
 
       String jsonData = json.encode({
         '3064': 1,
-        '39c8':
-            '${account is AnonymousAccount ? '333.1365' : '333.788'}.fp.risk',
+        '39c8': '333.1387.fp.risk',
         '3c43': {
           'adca': 'Linux',
           'bfe9': randPngEnd.substring(randPngEnd.length - 50),
@@ -102,36 +101,40 @@ class Request {
       headers: {
         'user-agent': 'Dart/3.6 (dart:io)', // Http2Adapter不会自动添加标头
       },
-      responseDecoder: responseDecoder, // Http2Adapter没有自动解压
+      responseDecoder: _responseDecoder, // Http2Adapter没有自动解压
       persistentConnection: true,
     );
 
-    final bool enableSystemProxy = Pref.enableSystemProxy;
-    final String systemProxyHost = Pref.systemProxyHost;
-    final String systemProxyPort = Pref.systemProxyPort;
+    final bool enableSystemProxy;
+    late final String systemProxyHost;
+    late final int? systemProxyPort;
+    if (Pref.enableSystemProxy) {
+      systemProxyHost = Pref.systemProxyHost;
+      systemProxyPort = int.tryParse(Pref.systemProxyPort);
+      enableSystemProxy = systemProxyPort != null && systemProxyHost.isNotEmpty;
+    } else {
+      enableSystemProxy = false;
+    }
 
     final http11Adapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient()
-          ..idleTimeout = const Duration(seconds: 15)
-          ..autoUncompress = false; // Http2Adapter没有自动解压, 统一行为
-        // 设置代理
-        if (enableSystemProxy) {
-          client
-            ..findProxy = ((_) => 'PROXY $systemProxyHost:$systemProxyPort')
-            ..badCertificateCallback =
-                (X509Certificate cert, String host, int port) => true;
-        }
-        return client;
-      },
+      createHttpClient: enableSystemProxy
+          ? () => HttpClient()
+              ..idleTimeout = const Duration(seconds: 15)
+              ..autoUncompress = false
+              ..findProxy = ((_) => 'PROXY $systemProxyHost:$systemProxyPort')
+              ..badCertificateCallback =
+                  (X509Certificate cert, String host, int port) => true
+          : () => HttpClient()
+              ..idleTimeout = const Duration(seconds: 15)
+              ..autoUncompress = false, // Http2Adapter没有自动解压, 统一行为
     );
 
-    late Uri proxy;
+    late final Uri proxy;
     if (enableSystemProxy) {
       proxy = Uri(
         scheme: 'http',
         host: systemProxyHost,
-        port: int.parse(systemProxyPort),
+        port: systemProxyPort,
       );
     }
 
@@ -265,24 +268,21 @@ class Request {
     }
   }
 
-  static String responseDecoder(
+  static List<int> responseBytesDecoder(
+    List<int> responseBytes,
+    Map<String, List<String>> headers,
+  ) => switch (headers['content-encoding']?.firstOrNull) {
+    'gzip' => _gzipDecoder.decodeBytes(responseBytes),
+    'br' => _brotilDecoder.convert(responseBytes),
+    _ => responseBytes,
+  };
+
+  static String _responseDecoder(
     List<int> responseBytes,
     RequestOptions options,
     ResponseBody responseBody,
-  ) {
-    switch (responseBody.headers['content-encoding']?.firstOrNull) {
-      case 'gzip':
-        return utf8.decode(
-          _gzipDecoder.decodeBytes(responseBytes),
-          allowMalformed: true,
-        );
-      case 'br':
-        return utf8.decode(
-          _brotilDecoder.convert(responseBytes),
-          allowMalformed: true,
-        );
-      default:
-        return utf8.decode(responseBytes, allowMalformed: true);
-    }
-  }
+  ) => utf8.decode(
+    responseBytesDecoder(responseBytes, responseBody.headers),
+    allowMalformed: true,
+  );
 }

@@ -106,6 +106,7 @@ class MemberVideoCtr
     }
     firstAid = data.item?.firstOrNull?.param;
     lastAid = data.item?.lastOrNull?.param;
+    isLoadPrevious = false;
     loadingState.value = Success(data.item);
     return true;
   }
@@ -134,6 +135,7 @@ class MemberVideoCtr
       );
 
   void queryBySort() {
+    if (isLoading) return;
     if (type == ContributeType.video) {
       isLocating.value = false;
       order.value = order.value == 'pubdate' ? 'click' : 'pubdate';

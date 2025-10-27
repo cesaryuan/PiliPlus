@@ -244,7 +244,9 @@ class _CreateVotePageState extends State<CreateVotePage> {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Obx(
                     () => Text(
-                      DateFormatUtils.longFormatD.format(_controller.endtime.value),
+                      DateFormatUtils.longFormatD.format(
+                        _controller.endtime.value,
+                      ),
                     ),
                   ),
                 ),
@@ -322,10 +324,8 @@ class _CreateVotePageState extends State<CreateVotePage> {
             size: 26,
             iconSize: 18,
             tooltip: '移除',
-            context: context,
-            icon: Icons.clear,
+            icon: const Icon(Icons.clear),
             onPressed: onDel,
-            bgColor: Colors.transparent,
             iconColor: theme.colorScheme.onSurfaceVariant,
           ),
       ],

@@ -24,33 +24,36 @@ abstract class GStorage {
     final String path = dir.path;
     await Hive.initFlutter('$path/hive');
     regAdapter();
-    // 登录用户信息
-    userInfo = await Hive.openBox<UserInfoData>(
-      'userInfo',
-      compactionStrategy: (int entries, int deletedEntries) {
-        return deletedEntries > 2;
-      },
-    );
-    // 本地缓存
-    localCache = await Hive.openBox(
-      'localCache',
-      compactionStrategy: (int entries, int deletedEntries) {
-        return deletedEntries > 4;
-      },
-    );
-    // 设置
-    setting = await Hive.openBox('setting');
-    // 搜索历史
-    historyWord = await Hive.openBox(
-      'historyWord',
-      compactionStrategy: (int entries, int deletedEntries) {
-        return deletedEntries > 10;
-      },
-    );
-    // 视频设置
-    video = await Hive.openBox('video');
 
-    await Accounts.init();
+    await Future.wait([
+      // 登录用户信息
+      Hive.openBox<UserInfoData>(
+        'userInfo',
+        compactionStrategy: (int entries, int deletedEntries) {
+          return deletedEntries > 2;
+        },
+      ).then((res) => userInfo = res),
+      // 本地缓存
+      Hive.openBox(
+        'localCache',
+        compactionStrategy: (int entries, int deletedEntries) {
+          return deletedEntries > 4;
+        },
+      ).then((res) => localCache = res),
+      // 设置
+      Hive.openBox('setting').then((res) => setting = res),
+      // 搜索历史
+      Hive.openBox(
+        'historyWord',
+        compactionStrategy: (int entries, int deletedEntries) {
+          return deletedEntries > 10;
+        },
+      ).then((res) => historyWord = res),
+      // 视频设置
+      Hive.openBox('video').then((res) => video = res),
+
+      Accounts.init(),
+    ]);
   }
 
   static String exportAllSettings() {
@@ -83,24 +86,25 @@ abstract class GStorage {
       ..registerAdapter(RuleFilterAdapter());
   }
 
-  static void close() {
-    // user.compact();
-    // user.close();
-    userInfo
-      ..compact()
-      ..close();
-    historyWord
-      ..compact()
-      ..close();
-    localCache
-      ..compact()
-      ..close();
-    setting
-      ..compact()
-      ..close();
-    video
-      ..compact()
-      ..close();
-    Accounts.close();
+  static Future<void> compact() async {
+    await Future.wait([
+      userInfo.compact(),
+      historyWord.compact(),
+      localCache.compact(),
+      setting.compact(),
+      video.compact(),
+      Accounts.account.compact(),
+    ]);
+  }
+
+  static Future<void> close() async {
+    await Future.wait([
+      userInfo.close(),
+      historyWord.close(),
+      localCache.close(),
+      setting.close(),
+      video.close(),
+      Accounts.account.close(),
+    ]);
   }
 }

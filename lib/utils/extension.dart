@@ -11,15 +11,15 @@ import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide ContextExtensionss;
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-extension ImageExtension on num? {
+extension ImageExtension on num {
   int? cacheSize(BuildContext context) {
-    if (this == null || this == 0) {
+    if (this == 0) {
       return null;
     }
-    return (this! * MediaQuery.devicePixelRatioOf(context)).round();
+    return (this * MediaQuery.devicePixelRatioOf(context)).round();
   }
 }
 
@@ -29,14 +29,19 @@ extension IntExt on int? {
 }
 
 extension ScrollControllerExt on ScrollController {
-  void animToTop() {
+  void animToTop() => animTo(0);
+
+  void animTo(
+    double offset, {
+    Duration duration = const Duration(milliseconds: 500),
+  }) {
     if (!hasClients) return;
-    if (offset >= Get.mediaQuery.size.height * 7) {
-      jumpTo(0);
+    if ((offset - this.offset).abs() >= position.viewportDimension * 7) {
+      jumpTo(offset);
     } else {
       animateTo(
-        0,
-        duration: const Duration(milliseconds: 500),
+        offset,
+        duration: duration,
         curve: Curves.easeInOut,
       );
     }
@@ -52,41 +57,52 @@ extension IterableExt<T> on Iterable<T>? {
   bool get isNullOrEmpty => this == null || this!.isEmpty;
 }
 
+extension NonNullIterableExt<T> on Iterable<T> {
+  T? reduceOrNull(T Function(T value, T element) combine) {
+    Iterator<T> iterator = this.iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
+    T value = iterator.current;
+    while (iterator.moveNext()) {
+      value = combine(value, iterator.current);
+    }
+    return value;
+  }
+}
+
 extension MapExt<K, V> on Map<K, V> {
   Map<RK, RV> fromCast<RK, RV>() {
     return Map<RK, RV>.from(this);
   }
 }
 
-extension NonNullListExt<T> on List<T> {
-  List<R> fromCast<R>() {
-    return List<R>.from(this);
-  }
-}
-
-extension ListExt<T> on List<T>? {
+extension ListExt<T> on List<T> {
   T? getOrNull(int index) {
-    if (isNullOrEmpty) {
+    if (index < 0 || index >= length) {
       return null;
     }
-    if (index < 0 || index >= this!.length) {
-      return null;
-    }
-    return this![index];
-  }
-
-  T getOrElse(int index, {required T Function() orElse}) {
-    return getOrNull(index) ?? orElse();
+    return this[index];
   }
 
   bool removeFirstWhere(bool Function(T) test) {
-    if (this == null) return false;
-    final index = this!.indexWhere(test);
+    final index = indexWhere(test);
     if (index != -1) {
-      this!.removeAt(index);
+      removeAt(index);
       return true;
     }
     return false;
+  }
+
+  List<R> fromCast<R>() {
+    return List<R>.from(this);
+  }
+
+  T findClosestTarget(
+    bool Function(T) test,
+    T Function(T, T) combine,
+  ) {
+    return where(test).reduceOrNull(combine) ?? reduce(combine);
   }
 }
 
@@ -104,6 +120,10 @@ extension ColorSchemeExt on ColorScheme {
 
   Color get freeColor =>
       brightness.isLight ? const Color(0xFFFF7F24) : const Color(0xFFD66011);
+
+  bool get isLight => brightness.isLight;
+
+  bool get isDark => brightness.isDark;
 }
 
 extension Unique<E, Id> on List<E> {
@@ -227,9 +247,9 @@ extension ThreeDotItemTypeExt on ThreeDotItemType {
 }
 
 extension FileExt on File {
-  void tryDel({bool recursive = false}) {
+  Future<void> tryDel({bool recursive = false}) async {
     try {
-      delete(recursive: recursive);
+      await delete(recursive: recursive);
     } catch (_) {}
   }
 }

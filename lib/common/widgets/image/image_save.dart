@@ -19,20 +19,17 @@ void imageSaveDialog({
     animationType: SmartAnimationType.centerScale_otherSlide,
     builder: (context) {
       final theme = Theme.of(context);
-      late final iconColor = theme.colorScheme.onSurfaceVariant;
 
       Widget iconBtn({
         String? tooltip,
-        required IconData icon,
+        required Icon icon,
         required VoidCallback? onPressed,
       }) {
         return iconButton(
-          context: context,
-          onPressed: onPressed,
-          iconSize: 20,
           icon: icon,
-          bgColor: Colors.transparent,
-          iconColor: iconColor,
+          iconSize: 20,
+          tooltip: tooltip,
+          onPressed: onPressed,
         );
       }
 
@@ -61,19 +58,19 @@ void imageSaveDialog({
                 Positioned(
                   right: 8,
                   top: 8,
-                  child: Container(
+                  child: SizedBox(
                     width: 30,
                     height: 30,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const IconButton(
+                    child: IconButton(
+                      tooltip: '关闭',
                       style: ButtonStyle(
-                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                        backgroundColor: WidgetStatePropertyAll(
+                          Colors.black.withValues(alpha: 0.3),
+                        ),
+                        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
                       ),
                       onPressed: SmartDialog.dismiss,
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.close,
                         size: 18,
                         color: Colors.white,
@@ -105,7 +102,7 @@ void imageSaveDialog({
                           (res) => SmartDialog.showToast(res['msg']),
                         ),
                       },
-                      icon: Icons.watch_later_outlined,
+                      icon: const Icon(Icons.watch_later_outlined),
                     ),
                   if (cover?.isNotEmpty == true) ...[
                     if (Utils.isMobile)
@@ -115,7 +112,7 @@ void imageSaveDialog({
                           SmartDialog.dismiss();
                           ImageUtils.onShareImg(cover!);
                         },
-                        icon: Icons.share,
+                        icon: const Icon(Icons.share),
                       ),
                     iconBtn(
                       tooltip: '保存封面图',
@@ -128,7 +125,7 @@ void imageSaveDialog({
                           SmartDialog.dismiss();
                         }
                       },
-                      icon: Icons.download,
+                      icon: const Icon(Icons.download),
                     ),
                   ],
                 ],
