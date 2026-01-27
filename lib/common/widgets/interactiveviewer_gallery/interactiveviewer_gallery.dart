@@ -2,14 +2,16 @@ import 'dart:io';
 
 import 'package:PiliPlus/common/widgets/interactiveviewer_gallery/interactive_viewer_boundary.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
-import 'package:PiliPlus/utils/extension.dart';
+import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:get/get.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -122,7 +124,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
       ..removeListener(listener)
       ..dispose();
     _transformationController.dispose();
-    for (var item in widget.sources) {
+    for (final item in widget.sources) {
       if (item.sourceType == SourceType.networkImage) {
         CachedNetworkImageProvider(_getActualUrl(item.url)).evict();
       }
@@ -196,7 +198,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   void _onPageChanged(int page) {
     _player?.pause();
     currentIndex.value = page;
-    var item = widget.sources[page];
+    final item = widget.sources[page];
     if (item.sourceType == SourceType.livePhoto) {
       _onPlay(item.liveUrl!);
     }
@@ -272,8 +274,8 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onDoubleTap,
                 ),
                 onLongPress: !isFileImg ? () => onLongPress(item) : null,
-                onSecondaryTap: !isFileImg && !Utils.isMobile
-                    ? () => onLongPress(item)
+                onSecondaryTapUp: PlatformUtils.isDesktop && !isFileImg
+                    ? (e) => _showDesktopMenu(e.globalPosition, item)
                     : null,
                 child: widget.itemBuilder != null
                     ? widget.itemBuilder!(
@@ -325,9 +327,9 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
       child: Hero(
         tag: item.url,
         child: switch (item.sourceType) {
-          SourceType.fileImage => Image(
+          SourceType.fileImage => Image.file(
+            File(item.url),
             filterQuality: FilterQuality.low,
-            image: FileImage(File(item.url)),
           ),
           SourceType.networkImage => CachedNetworkImage(
             fadeInDuration: Duration.zero,
@@ -335,10 +337,14 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
             imageUrl: _getActualUrl(item.url),
             placeholderFadeInDuration: Duration.zero,
             placeholder: (context, url) {
+              if (widget.quality == _quality) {
+                return const SizedBox.expand();
+              }
               return CachedNetworkImage(
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
                 imageUrl: ImageUtils.thumbnailUrl(item.url, widget.quality),
+                placeholder: (_, _) => const SizedBox.expand(),
               );
             },
           ),
@@ -359,7 +365,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
 
   void onDoubleTap() {
     Matrix4 matrix = _transformationController.value.clone();
-    double currentScale = matrix.row0.x;
+    double currentScale = matrix.storage[0];
 
     double targetScale = widget.minScale;
 
@@ -406,6 +412,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   }
 
   void onLongPress(SourceModel item) {
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (context) {
@@ -415,7 +422,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (Utils.isMobile)
+              if (PlatformUtils.isMobile)
                 ListTile(
                   onTap: () {
                     Get.back();
@@ -435,15 +442,12 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
               ListTile(
                 onTap: () {
                   Get.back();
-                  ImageUtils.downloadImg(
-                    this.context,
-                    [item.url],
-                  );
+                  ImageUtils.downloadImg([item.url]);
                 },
                 dense: true,
                 title: const Text('保存图片', style: TextStyle(fontSize: 14)),
               ),
-              if (Utils.isDesktop)
+              if (PlatformUtils.isDesktop)
                 ListTile(
                   onTap: () {
                     Get.back();
@@ -457,7 +461,6 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onTap: () {
                     Get.back();
                     ImageUtils.downloadImg(
-                      this.context,
                       widget.sources.map((item) => item.url).toList(),
                     );
                   },
@@ -469,7 +472,6 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onTap: () {
                     Get.back();
                     ImageUtils.downloadLivePhoto(
-                      context: this.context,
                       url: item.url,
                       liveUrl: item.liveUrl!,
                       width: item.width!,
@@ -477,15 +479,50 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                     );
                   },
                   dense: true,
-                  title: const Text(
-                    '保存 Live Photo',
-                    style: TextStyle(fontSize: 14),
+                  title: Text(
+                    '保存${Platform.isIOS ? ' Live Photo' : '视频'}',
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showDesktopMenu(Offset offset, SourceModel item) {
+    showMenu(
+      context: context,
+      position: PageUtils.menuPosition(offset),
+      items: [
+        PopupMenuItem(
+          height: 42,
+          onTap: () => Utils.copyText(item.url),
+          child: const Text('复制链接', style: TextStyle(fontSize: 14)),
+        ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => ImageUtils.downloadImg([item.url]),
+          child: const Text('保存图片', style: TextStyle(fontSize: 14)),
+        ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => PageUtils.launchURL(item.url),
+          child: const Text('网页打开', style: TextStyle(fontSize: 14)),
+        ),
+        if (item.sourceType == SourceType.livePhoto)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => ImageUtils.downloadLivePhoto(
+              url: item.url,
+              liveUrl: item.liveUrl!,
+              width: item.width!,
+              height: item.height!,
+            ),
+            child: const Text('保存视频', style: TextStyle(fontSize: 14)),
+          ),
+      ],
     );
   }
 }

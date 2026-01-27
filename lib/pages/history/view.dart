@@ -1,14 +1,14 @@
 import 'package:PiliPlus/common/widgets/appbar/appbar.dart';
+import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
-import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/history/list.dart';
 import 'package:PiliPlus/pages/history/base_controller.dart';
 import 'package:PiliPlus/pages/history/controller.dart';
 import 'package:PiliPlus/pages/history/widgets/item.dart';
-import 'package:PiliPlus/utils/extension.dart';
+import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -157,56 +157,39 @@ class _HistoryPageState extends State<HistoryPage>
         onPressed: () => Get.toNamed('/historySearch'),
         icon: const Icon(Icons.search_outlined),
       ),
-      PopupMenuButton<String>(
-        onSelected: (String type) {
-          switch (type) {
-            case 'pause':
-              _historyController.baseCtr.onPauseHistory(
-                context,
-              );
-              break;
-            case 'clear':
-              _historyController.baseCtr.onClearHistory(
-                context,
-                () {
-                  _historyController.loadingState.value = const Success(
-                    null,
-                  );
-                  if (_historyController.tabController != null) {
-                    for (final item in _historyController.tabs) {
-                      try {
-                        Get.find<HistoryController>(
-                          tag: item.type,
-                        ).loadingState.value = const Success(
-                          null,
-                        );
-                      } catch (_) {}
-                    }
-                  }
-                },
-              );
-              break;
-            case 'viewed':
-              currCtr().onDelViewedHistory();
-              break;
-          }
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-          PopupMenuItem<String>(
-            value: 'pause',
+      PopupMenuButton(
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            onTap: () => _historyController.baseCtr.onPauseHistory(context),
             child: Text(
               !_historyController.baseCtr.pauseStatus.value
                   ? '暂停观看记录'
                   : '恢复观看记录',
             ),
           ),
-          const PopupMenuItem<String>(
-            value: 'clear',
-            child: Text('清空观看记录'),
+          PopupMenuItem(
+            onTap: () => _historyController.baseCtr.onClearHistory(
+              context,
+              () {
+                _historyController.loadingState.value = const Success(null);
+                if (_historyController.tabController != null) {
+                  for (final item in _historyController.tabs) {
+                    try {
+                      Get.find<HistoryController>(
+                        tag: item.type,
+                      ).loadingState.value = const Success(
+                        null,
+                      );
+                    } catch (_) {}
+                  }
+                }
+              },
+            ),
+            child: const Text('清空观看记录'),
           ),
-          const PopupMenuItem<String>(
-            value: 'viewed',
-            child: Text('删除已看记录'),
+          PopupMenuItem(
+            onTap: currCtr().onDelViewedHistory,
+            child: const Text('删除已看记录'),
           ),
         ],
       ),
@@ -217,8 +200,8 @@ class _HistoryPageState extends State<HistoryPage>
   Widget _buildBody(LoadingState<List<HistoryItemModel>?> loadingState) {
     return switch (loadingState) {
       Loading() => gridSkeleton,
-      Success(:var response) =>
-        response?.isNotEmpty == true
+      Success(:final response) =>
+        response != null && response.isNotEmpty
             ? SliverGrid.builder(
                 gridDelegate: gridDelegate,
                 itemBuilder: (context, index) {
@@ -233,10 +216,10 @@ class _HistoryPageState extends State<HistoryPage>
                         _historyController.delHistory(item),
                   );
                 },
-                itemCount: response!.length,
+                itemCount: response.length,
               )
             : HttpError(onReload: _historyController.onReload),
-      Error(:var errMsg) => HttpError(
+      Error(:final errMsg) => HttpError(
         errMsg: errMsg,
         onReload: _historyController.onReload,
       ),

@@ -4,7 +4,7 @@ import 'package:PiliPlus/models_new/msg/im_user_infos/datum.dart';
 import 'package:PiliPlus/models_new/msg/msg_dnd/uid_setting.dart';
 import 'package:PiliPlus/models_new/msg/session_ss/data.dart';
 import 'package:PiliPlus/pages/whisper_link_setting/controller.dart';
-import 'package:PiliPlus/utils/extension.dart';
+import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -61,11 +61,12 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
             ),
           ),
           Obx(
-            () => _controller.sessionSs.value.isSuccess
-                ? _buildBlockItem(
-                    _controller.sessionSs.value.data.followStatus == 128,
-                  )
-                : const SizedBox.shrink(),
+            () {
+              if (_controller.sessionSs.value case Success(:final response)) {
+                return _buildBlockItem(response.followStatus == 128);
+              }
+              return const SizedBox.shrink();
+            },
           ),
           divider2,
           ListTile(
@@ -106,15 +107,15 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
   ) {
     return switch (loadingState) {
       Loading() => const SizedBox.shrink(),
-      Success(:var response) =>
-        response?.isNotEmpty == true
+      Success(:final response) =>
+        response != null && response.isNotEmpty
             ? Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Builder(
                     builder: (context) {
-                      final ImUserInfosData item = response!.first;
+                      final ImUserInfosData item = response.first;
                       return ListTile(
                         onTap: () => Get.toNamed('/member?mid=${item.mid}'),
                         leading: PendantAvatar(
@@ -159,7 +160,7 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
                 ],
               )
             : const SizedBox.shrink(),
-      Error(:var errMsg) => _errWidget(errMsg, _controller.getUserInfo),
+      Error(:final errMsg) => _errWidget(errMsg, _controller.getUserInfo),
     };
   }
 
@@ -171,7 +172,7 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
   ) {
     return switch (loadingState) {
       Loading() => const SizedBox.shrink(),
-      Success(:var response) => Builder(
+      Success(:final response) => Builder(
         builder: (context) {
           late final subTitleS = TextStyle(
             fontSize: 13,
@@ -223,15 +224,15 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
           );
         },
       ),
-      Error(:var errMsg) => _errWidget(errMsg, _controller.getSessionSs),
+      Error(:final errMsg) => _errWidget(errMsg, _controller.getSessionSs),
     };
   }
 
   Widget _buildMuteItem(LoadingState<List<UidSetting>?> loadingState) {
     return switch (loadingState) {
       Loading() => const SizedBox.shrink(),
-      Success(:var response) =>
-        response?.isNotEmpty == true
+      Success(:final response) =>
+        response != null && response.isNotEmpty
             ? ListTile(
                 dense: true,
                 onTap: () => _controller.setMute(response.first.setting == 1),
@@ -240,14 +241,14 @@ class _WhisperLinkSettingPageState extends State<WhisperLinkSettingPage> {
                   alignment: Alignment.centerRight,
                   scale: 0.8,
                   child: Switch(
-                    value: response!.first.setting == 1,
+                    value: response.first.setting == 1,
                     onChanged: (value) =>
                         _controller.setMute(response.first.setting == 1),
                   ),
                 ),
               )
             : const SizedBox.shrink(),
-      Error(:var errMsg) => _errWidget(errMsg, _controller.getMsgDnd),
+      Error(:final errMsg) => _errWidget(errMsg, _controller.getMsgDnd),
     };
   }
 

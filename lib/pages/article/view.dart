@@ -2,8 +2,9 @@ import 'dart:math';
 
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
-import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
+import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
@@ -15,7 +16,8 @@ import 'package:PiliPlus/pages/article/widgets/opus_content.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
-import 'package:PiliPlus/utils/extension.dart';
+import 'package:PiliPlus/utils/extension/get_ext.dart';
+import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
@@ -25,7 +27,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get/get.dart' hide ContextExtensionss;
+import 'package:get/get.dart';
 import 'package:html/parser.dart' as parser;
 
 class ArticlePage extends StatefulWidget {
@@ -175,12 +177,15 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
             // if (kDebugMode) debugPrint('moduleBlocked');
             final moduleBlocked = controller.opusData!.modules.moduleBlocked!;
             content = SliverToBoxAdapter(
-              child: moduleBlockedItem(theme, moduleBlocked, maxWidth),
+              child: moduleBlockedItem(context, theme, moduleBlocked, maxWidth),
             );
           } else if (controller.articleData?.content != null) {
             if (controller.articleData?.type == 3) {
               // json
-              return ArticleOpus(ops: controller.articleData?.ops);
+              return ArticleOpus(
+                ops: controller.articleData?.ops,
+                maxWidth: maxWidth,
+              );
             }
             // if (kDebugMode) debugPrint('html page');
             final res = parser.parse(controller.articleData!.content!);
@@ -238,14 +243,11 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                       final length = pics.length;
                       final first = pics.first;
                       double height;
-                      double paddingRight;
                       if (first.height != null && first.width != null) {
                         final ratio = first.height! / first.width!;
-                        height = min(maxWidth * ratio, Get.height * 0.55);
-                        paddingRight = (maxWidth - height / ratio) / 2 + 12;
+                        height = min(maxWidth * ratio, maxHeight * 0.55);
                       } else {
-                        height = Get.height * 0.55;
-                        paddingRight = 12;
+                        height = maxHeight * 0.55;
                       }
                       return Stack(
                         clipBehavior: Clip.none,
@@ -255,13 +257,25 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                             width: maxWidth,
                             margin: const EdgeInsets.only(bottom: 10),
                             child: PageView.builder(
-                              physics: const ClampingScrollPhysics(),
-                              onPageChanged: (value) {
-                                controller.topIndex.value = value;
-                              },
+                              physics: const CustomTabBarViewScrollPhysics(
+                                parent: ClampingScrollPhysics(),
+                              ),
+                              onPageChanged: (value) =>
+                                  controller.topIndex.value = value,
                               itemCount: length,
                               itemBuilder: (context, index) {
                                 final pic = pics[index];
+                                int? memCacheWidth, memCacheHeight;
+                                if (pic.isLongPic ?? false) {
+                                  memCacheWidth = maxWidth.cacheSize(context);
+                                } else if (pic.width != null &&
+                                    pic.height != null) {
+                                  if (pic.width! > pic.height!) {
+                                    memCacheWidth = maxWidth.cacheSize(context);
+                                  } else {
+                                    memCacheHeight = height.cacheSize(context);
+                                  }
+                                }
                                 return GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onTap: () => PageUtils.imageView(
@@ -277,29 +291,33 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                                       clipBehavior: Clip.none,
                                       alignment: Alignment.center,
                                       children: [
-                                        Positioned.fill(
-                                          child: CachedNetworkImage(
-                                            fit: pic.isLongPic == true
-                                                ? BoxFit.cover
-                                                : null,
-                                            imageUrl: ImageUtils.thumbnailUrl(
-                                              pic.url,
-                                              60,
-                                            ),
-                                            fadeInDuration: const Duration(
-                                              milliseconds: 120,
-                                            ),
-                                            fadeOutDuration: const Duration(
-                                              milliseconds: 120,
-                                            ),
+                                        CachedNetworkImage(
+                                          height: height,
+                                          width: maxWidth,
+                                          memCacheWidth: memCacheWidth,
+                                          memCacheHeight: memCacheHeight,
+                                          fit: pic.isLongPic == true
+                                              ? BoxFit.cover
+                                              : null,
+                                          imageUrl: ImageUtils.thumbnailUrl(
+                                            pic.url,
+                                            60,
                                           ),
+                                          fadeInDuration: const Duration(
+                                            milliseconds: 120,
+                                          ),
+                                          fadeOutDuration: const Duration(
+                                            milliseconds: 120,
+                                          ),
+                                          placeholder: (_, _) =>
+                                              const SizedBox.shrink(),
                                         ),
                                         if (pic.isLongPic == true)
-                                          PBadge(
-                                            text: '长图',
-                                            type: PBadgeType.primary,
-                                            right: paddingRight,
+                                          const PBadge(
+                                            right: 12,
                                             bottom: 12,
+                                            text: '长图',
+                                            type: .primary,
                                           ),
                                       ],
                                     ),
@@ -311,7 +329,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                           Obx(
                             () => PBadge(
                               top: 12,
-                              right: paddingRight,
+                              right: 12,
                               type: PBadgeType.gray,
                               text: '${controller.topIndex.value + 1}/$length',
                             ),
@@ -347,25 +365,28 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                           src: controller.summary.author?.face,
                         ),
                         const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              controller.summary.author?.name ?? '',
-                              style: TextStyle(
-                                fontSize: theme.textTheme.titleSmall!.fontSize,
-                              ),
-                            ),
-                            if (pubTime != null)
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                DateFormatUtils.format(pubTime),
+                                controller.summary.author?.name ?? '',
                                 style: TextStyle(
-                                  color: theme.colorScheme.outline,
                                   fontSize:
-                                      theme.textTheme.labelSmall!.fontSize,
+                                      theme.textTheme.titleSmall!.fontSize,
                                 ),
                               ),
-                          ],
+                              if (pubTime != null)
+                                Text(
+                                  DateFormatUtils.format(pubTime),
+                                  style: TextStyle(
+                                    color: theme.colorScheme.outline,
+                                    fontSize:
+                                        theme.textTheme.labelSmall!.fontSize,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -499,6 +520,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
           late final primary = theme.colorScheme.primary;
           late final outline = theme.colorScheme.outline;
           late final btnStyle = TextButton.styleFrom(
+            tapTargetSize: .padded,
             padding: const EdgeInsets.symmetric(horizontal: 15),
             foregroundColor: outline,
           );
@@ -508,14 +530,14 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
             required String text,
             required DynamicStat? stat,
             required VoidCallback onPressed,
-            IconData? activitedIcon,
+            IconData? activatedIcon,
           }) {
             final status = stat?.status == true;
             final color = status ? primary : outline;
             return TextButton.icon(
               onPressed: onPressed,
               icon: Icon(
-                status ? activitedIcon : icon,
+                status ? activatedIcon : icon,
                 size: 16,
                 color: color,
               ),
@@ -594,7 +616,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                                     pic: summary.cover,
                                     title: summary.title,
                                     uname: summary.author?.name,
-                                    callback: () {
+                                    onSuccess: () {
                                       if (forward != null) {
                                         int count = forward.count ?? 0;
                                         forward.count = count + 1;
@@ -622,7 +644,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                       Expanded(
                         child: textIconButton(
                           icon: FontAwesomeIcons.star,
-                          activitedIcon: FontAwesomeIcons.solidStar,
+                          activatedIcon: FontAwesomeIcons.solidStar,
                           text: '收藏',
                           stat: stats.favorite,
                           onPressed: controller.onFav,
@@ -631,7 +653,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                       Expanded(
                         child: textIconButton(
                           icon: FontAwesomeIcons.thumbsUp,
-                          activitedIcon: FontAwesomeIcons.solidThumbsUp,
+                          activatedIcon: FontAwesomeIcons.solidThumbsUp,
                           text: '点赞',
                           stat: stats.like,
                           onPressed: controller.onLike,

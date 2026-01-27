@@ -3,20 +3,23 @@ import 'dart:math';
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/init.dart';
+import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/http/sponsor_block.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
+import 'package:PiliPlus/models_new/sponsor_block/user_info.dart';
 import 'package:PiliPlus/pages/setting/slide_color_picker.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:uuid/uuid.dart';
 
 class SponsorBlockPage extends StatefulWidget {
   const SponsorBlockPage({super.key});
@@ -35,7 +38,8 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
   bool _blockToast = Pref.blockToast;
   String _blockServer = Pref.blockServer;
   bool _blockTrack = Pref.blockTrack;
-  final Rx<bool?> _serverStatus = Rx<bool?>(null);
+  final _serverStatus = Rxn<bool>();
+  final _userInfo = LoadingState<UserInfo>.loading().obs;
 
   Box setting = GStorage.setting;
 
@@ -43,6 +47,7 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
   void initState() {
     super.initState();
     _checkServerStatus();
+    _getUserInfo();
   }
 
   @override
@@ -51,13 +56,16 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
     super.dispose();
   }
 
-  void _checkServerStatus() {
-    Request().get('$_blockServer/api/status/uptime').then((res) {
-      _serverStatus.value =
-          res.statusCode == 200 &&
-          res.data is String &&
-          Utils.isStringNumeric(res.data);
-    });
+  Future<void> _checkServerStatus() async {
+    _serverStatus.value = (await SponsorBlock.uptimeStatus()).isSuccess;
+  }
+
+  Future<void> _getUserInfo() async {
+    _userInfo.value = await SponsorBlock.userInfo(const [
+      'viewCount',
+      'minutesSaved',
+      'segmentCount',
+    ], userId: _userId);
   }
 
   Widget _blockLimitItem(
@@ -126,7 +134,7 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
     },
   );
 
-  Widget _aboudItem(TextStyle titleStyle, TextStyle subTitleStyle) => ListTile(
+  Widget _aboutItem(TextStyle titleStyle, TextStyle subTitleStyle) => ListTile(
     dense: true,
     title: Text('关于空降助手', style: titleStyle),
     subtitle: Text(_url, style: subTitleStyle),
@@ -144,36 +152,37 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
         title: Text('用户ID', style: titleStyle),
         subtitle: Text(_userId, style: subTitleStyle),
         onTap: () {
-          final key = GlobalKey<FormState>();
+          final key = GlobalKey<FormFieldState<String>>();
           _textController.text = _userId;
           showDialog(
             context: context,
             builder: (_) {
               return AlertDialog(
                 title: Text('用户ID', style: titleStyle),
-                content: Form(
+                content: TextFormField(
                   key: key,
-                  child: TextFormField(
-                    minLines: 1,
-                    maxLines: 4,
-                    autofocus: true,
-                    controller: _textController,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\d]+')),
-                    ],
-                    validator: (value) {
-                      if ((value?.length ?? -1) < 30) {
-                        return '用户ID要求至少为30个字符长度的纯字符串';
-                      }
-                      return null;
-                    },
-                  ),
+                  minLines: 1,
+                  maxLines: 4,
+                  autofocus: true,
+                  controller: _textController,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\d]+')),
+                  ],
+                  decoration: const InputDecoration(errorMaxLines: 2),
+                  validator: (value) {
+                    if ((value?.length ?? -1) < 30) {
+                      return '用户ID要求至少为30个字符长度的纯字符串';
+                    }
+                    return null;
+                  },
                 ),
                 actions: [
                   TextButton(
                     onPressed: () {
                       Get.back();
-                      _userId = const Uuid().v4().replaceAll('-', '');
+                      _userId = Digest(
+                        List.generate(16, (_) => Utils.random.nextInt(256)),
+                      ).toString();
                       setting.put(SettingBoxKey.blockUserID, _userId);
                       (context as Element).markNeedsBuild();
                     },
@@ -270,6 +279,37 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
     },
   );
 
+  Widget _blockUserInfo(
+    ThemeData theme,
+    TextStyle titleStyle,
+    TextStyle subTitleStyle,
+  ) => Obx(
+    () {
+      return ListTile(
+        dense: true,
+        onTap: () {
+          _userInfo.value = LoadingState.loading();
+          _getUserInfo();
+        },
+        title: Text(
+          '您的信息',
+          style: titleStyle,
+        ),
+        subtitle: switch (_userInfo.value) {
+          Loading() => const SizedBox.shrink(),
+          Success<UserInfo>(:final response) => Text(
+            response.toString(),
+            style: subTitleStyle,
+          ),
+          Error(:final errMsg) => Text(
+            errMsg ?? '服务器错误',
+            style: subTitleStyle.copyWith(color: theme.colorScheme.error),
+          ),
+        },
+      );
+    },
+  );
+
   Widget _blockServerItem(
     ThemeData theme,
     TextStyle titleStyle,
@@ -316,6 +356,8 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
                       _blockServer = _textController.text;
                       setting.put(SettingBoxKey.blockServer, _blockServer);
                       Request.accountManager.blockServer = _blockServer;
+                      _checkServerStatus();
+                      _getUserInfo();
                       (context as Element).markNeedsBuild();
                     },
                     child: const Text('确定'),
@@ -406,7 +448,7 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
         content: SlideColorPicker(
           color: color,
           showResetBtn: true,
-          callback: (Color? color) {
+          onChanged: (Color? color) {
             _blockColor[index] = color ?? item.first.color;
             setting.put(
               SettingBoxKey.blockColor,
@@ -461,6 +503,10 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
           SliverToBoxAdapter(child: _blockToastItem(titleStyle)),
           sliverDivider,
           SliverToBoxAdapter(child: _blockTrackItem(titleStyle, subTitleStyle)),
+          sliverDivider,
+          SliverToBoxAdapter(
+            child: _blockUserInfo(theme, titleStyle, subTitleStyle),
+          ),
           dividerL,
           SliverList.separated(
             itemCount: _blockSettings.length,
@@ -477,7 +523,7 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
             child: _blockServerItem(theme, titleStyle, subTitleStyle),
           ),
           dividerL,
-          SliverToBoxAdapter(child: _aboudItem(titleStyle, subTitleStyle)),
+          SliverToBoxAdapter(child: _aboutItem(titleStyle, subTitleStyle)),
           dividerL,
           SliverToBoxAdapter(
             child: SizedBox(
@@ -554,32 +600,38 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
                         .toList(),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            item.second.title,
-                            style: TextStyle(
-                              height: 1,
-                              fontSize: 14,
-                              color: isDisable
-                                  ? theme.colorScheme.outline.withValues(
-                                      alpha: 0.7,
-                                    )
-                                  : theme.colorScheme.secondary,
+                      child: Text.rich(
+                        style: TextStyle(
+                          height: 1,
+                          fontSize: 14,
+                          color: isDisable
+                              ? theme.colorScheme.outline.withValues(
+                                  alpha: 0.7,
+                                )
+                              : theme.colorScheme.secondary,
+                        ),
+                        strutStyle: const StrutStyle(
+                          height: 1,
+                          leading: 0,
+                          fontSize: 14,
+                        ),
+                        TextSpan(
+                          children: [
+                            TextSpan(text: item.second.title),
+                            WidgetSpan(
+                              alignment: .middle,
+                              child: Icon(
+                                size: 14,
+                                MdiIcons.unfoldMoreHorizontal,
+                                color: isDisable
+                                    ? theme.colorScheme.outline.withValues(
+                                        alpha: 0.7,
+                                      )
+                                    : theme.colorScheme.secondary,
+                              ),
                             ),
-                            strutStyle: const StrutStyle(height: 1, leading: 0),
-                          ),
-                          Icon(
-                            MdiIcons.unfoldMoreHorizontal,
-                            size: MediaQuery.textScalerOf(context).scale(14),
-                            color: isDisable
-                                ? theme.colorScheme.outline.withValues(
-                                    alpha: 0.7,
-                                  )
-                                : theme.colorScheme.secondary,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );

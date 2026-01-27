@@ -14,12 +14,13 @@ class FansController extends FollowTypeController {
 
   @override
   void init() {
+    final Map? args = Get.arguments;
     final ownerMid = Accounts.main.mid;
-    final mid = Get.parameters['mid'];
-    this.mid = mid != null ? int.parse(mid) : ownerMid;
+    final int? mid = args?['mid'];
+    this.mid = mid ?? ownerMid;
     isOwner = ownerMid == this.mid;
     if (showName && !isOwner) {
-      final name = Get.parameters['name'];
+      final String? name = args?['name'];
       this.name = RxnString(name);
       if (name == null) {
         queryUserName();
@@ -41,13 +42,13 @@ class FansController extends FollowTypeController {
       act: 7,
       reSrc: 11,
     );
-    if (res['status']) {
+    if (res.isSuccess) {
       loadingState
         ..value.data!.removeAt(index)
         ..refresh();
       SmartDialog.showToast('移除成功');
     } else {
-      SmartDialog.showToast(res['msg']);
+      res.toast();
     }
   }
 }

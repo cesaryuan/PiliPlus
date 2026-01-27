@@ -7,6 +7,7 @@ import 'package:PiliPlus/models/member/tags.dart';
 import 'package:PiliPlus/pages/follow/child/child_controller.dart';
 import 'package:PiliPlus/pages/follow/child/child_view.dart';
 import 'package:PiliPlus/pages/follow/controller.dart';
+import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
@@ -17,6 +18,17 @@ class FollowPage extends StatefulWidget {
 
   @override
   State<FollowPage> createState() => _FollowPageState();
+
+  static void toFollowPage({dynamic mid, String? name}) {
+    if (mid == null) return;
+    Get.toNamed(
+      '/follow',
+      arguments: {
+        'mid': Utils.safeToInt(mid),
+        'name': name,
+      },
+    );
+  }
 }
 
 class _FollowPageState extends State<FollowPage> {
@@ -114,7 +126,7 @@ class _FollowPageState extends State<FollowPage> {
                         Feedback.forLongPress(context);
                         _onHandleTag(index, item);
                       },
-                      onSecondaryTap: Utils.isMobile
+                      onSecondaryTap: PlatformUtils.isMobile
                           ? null
                           : () => _onHandleTag(index, item),
                       child: Tab(
@@ -209,7 +221,7 @@ class _FollowPageState extends State<FollowPage> {
                     context: context,
                     title: '删除分组',
                     content: '删除后，该分组下的用户依旧保留？',
-                    onConfirm: () => _followController.onDelTag(item.tagid),
+                    onConfirm: () => _followController.onDelTag(item.tagid!),
                   );
                 },
                 dense: true,

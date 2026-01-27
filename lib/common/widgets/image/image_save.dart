@@ -3,7 +3,7 @@ import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
-import 'package:PiliPlus/utils/utils.dart';
+import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -14,25 +14,12 @@ void imageSaveDialog({
   dynamic aid,
   String? bvid,
 }) {
-  final double imgWidth = Get.mediaQuery.size.shortestSide - 8 * 2;
+  final double imgWidth = MediaQuery.sizeOf(Get.context!).shortestSide - 8 * 2;
   SmartDialog.show(
     animationType: SmartAnimationType.centerScale_otherSlide,
     builder: (context) {
+      const iconSize = 20.0;
       final theme = Theme.of(context);
-
-      Widget iconBtn({
-        String? tooltip,
-        required Icon icon,
-        required VoidCallback? onPressed,
-      }) {
-        return iconButton(
-          icon: icon,
-          iconSize: 20,
-          tooltip: tooltip,
-          onPressed: onPressed,
-        );
-      }
-
       return Container(
         width: imgWidth,
         margin: const EdgeInsets.symmetric(horizontal: StyleString.safeSpace),
@@ -94,33 +81,31 @@ void imageSaveDialog({
                   else
                     const Spacer(),
                   if (aid != null || bvid != null)
-                    iconBtn(
+                    iconButton(
+                      iconSize: iconSize,
                       tooltip: '稍后再看',
                       onPressed: () => {
                         SmartDialog.dismiss(),
-                        UserHttp.toViewLater(aid: aid, bvid: bvid).then(
-                          (res) => SmartDialog.showToast(res['msg']),
-                        ),
+                        UserHttp.toViewLater(aid: aid, bvid: bvid),
                       },
                       icon: const Icon(Icons.watch_later_outlined),
                     ),
-                  if (cover?.isNotEmpty == true) ...[
-                    if (Utils.isMobile)
-                      iconBtn(
+                  if (cover != null && cover.isNotEmpty) ...[
+                    if (PlatformUtils.isMobile)
+                      iconButton(
+                        iconSize: iconSize,
                         tooltip: '分享',
                         onPressed: () {
                           SmartDialog.dismiss();
-                          ImageUtils.onShareImg(cover!);
+                          ImageUtils.onShareImg(cover);
                         },
                         icon: const Icon(Icons.share),
                       ),
-                    iconBtn(
+                    iconButton(
+                      iconSize: iconSize,
                       tooltip: '保存封面图',
                       onPressed: () async {
-                        bool saveStatus = await ImageUtils.downloadImg(
-                          context,
-                          [cover!],
-                        );
+                        bool saveStatus = await ImageUtils.downloadImg([cover]);
                         if (saveStatus) {
                           SmartDialog.dismiss();
                         }
