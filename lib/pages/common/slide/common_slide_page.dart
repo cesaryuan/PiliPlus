@@ -24,6 +24,13 @@ mixin CommonSlideMixin<T extends CommonSlidePage> on State<T>, TickerProvider {
 
   static bool slideDismissReplyPage = Pref.slideDismissReplyPage;
 
+  bool isDxAllowed(double dx) {
+    return enableSlide
+        ? dx > CommonSlideMixin.offset &&
+              dx < maxWidth - CommonSlideMixin.offset
+        : true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +98,7 @@ mixin CommonSlideMixin<T extends CommonSlidePage> on State<T>, TickerProvider {
   Widget buildList(ThemeData theme) => throw UnimplementedError();
 
   void _onDragEnd([_]) {
+    if (_downDx == null) return;
     final dx = _downDx!;
     if (_animController.value * _maxWidth + (_isRTL ? (_maxWidth - dx) : dx) >=
         100) {
