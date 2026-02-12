@@ -228,7 +228,6 @@ class _DownloadPanelState extends State<DownloadPanel> {
     );
   }
 
-  late final int? vipStatus = Pref.userInfoCache?.vipStatus;
   @pragma('vm:notify-debugger-on-exception')
   bool _onDownload({
     required int index,
@@ -251,12 +250,18 @@ class _DownloadPanelState extends State<DownloadPanel> {
       return false;
     }
 
+    // Check VIP status based on content type
+    // For PGC content, use upInfo vipStatus; for UGC content, currently no owner vip info available
     if (kReleaseMode && episode.badge == '会员') {
-      if (vipStatus != 1) {
-        if (!isDownloadAll) {
-          SmartDialog.showToast('需要大会员');
+      // For PGC content
+      if (widget.pgcItem != null) {
+        final upVipStatus = widget.pgcItem!.upInfo?.vipStatus;
+        if (upVipStatus != 1) {
+          if (!isDownloadAll) {
+            SmartDialog.showToast('需要大会员');
+          }
+          return false;
         }
-        return false;
       }
     }
 
