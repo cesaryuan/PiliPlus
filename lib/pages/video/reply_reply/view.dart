@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/skeleton/video_reply.dart';
+import 'package:PiliPlus/common/widgets/colored_box_transition.dart';
 import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
@@ -180,14 +181,11 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
   Widget buildList(ThemeData theme) {
     final child = refreshIndicator(
       onRefresh: _controller.onRefresh,
+      isClampingScrollPhysics: widget.isNested,
       child: CustomScrollView(
         key: ValueKey(scrollController.hashCode),
         controller: scrollController,
-        physics: widget.isNested
-            ? const AlwaysScrollableScrollPhysics(
-                parent: ClampingScrollPhysics(),
-              )
-            : const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (!isDialogue) ...[
             if ((widget.firstFloor ?? _controller.firstFloor.value)
@@ -327,8 +325,8 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
           }
           final child = _replyItem(context, response[index], index);
           if (jumpIndex == index) {
-            return AnimatedBuilder(
-              animation: _colorAnimation ??= _controller.animController.drive(
+            return ColoredBoxTransition(
+              color: _colorAnimation ??= _controller.animController.drive(
                 ColorTween(
                   begin: theme.colorScheme.onInverseSurface,
                   end: theme.colorScheme.surface,
@@ -339,12 +337,6 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
                 ),
               ),
               child: child,
-              builder: (context, child) {
-                return ColoredBox(
-                  color: _colorAnimation!.value!,
-                  child: child,
-                );
-              },
             );
           }
           return child;
