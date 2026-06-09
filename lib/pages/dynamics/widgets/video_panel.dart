@@ -1,5 +1,6 @@
 // 视频or合集
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/assets.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
@@ -15,7 +16,6 @@ Widget videoSeasonWidget(
   required DynamicItemModel item,
   required bool isSave,
   required bool isDetail,
-  required double maxWidth,
 }) {
   // type archive  ugcSeason
   // archive 视频/显示发布人
@@ -36,7 +36,6 @@ Widget videoSeasonWidget(
 
   EdgeInsets padding;
   if (floor == 1) {
-    maxWidth -= 24;
     padding = const EdgeInsets.symmetric(horizontal: 12);
   } else {
     padding = EdgeInsets.zero;
@@ -51,11 +50,13 @@ Widget videoSeasonWidget(
           Stack(
             clipBehavior: Clip.none,
             children: [
-              NetworkImgLayer(
-                width: maxWidth,
-                height: maxWidth / StyleString.aspectRatio,
-                src: cover,
-                quality: 40,
+              LayoutBuilder(
+                builder: (context, constraints) => NetworkImgLayer(
+                  width: constraints.maxWidth,
+                  height: constraints.maxWidth / Style.aspectRatio,
+                  src: cover,
+                  quality: 40,
+                ),
               ),
               if (video.badge?.text case final badge?)
                 PBadge(
@@ -86,9 +87,7 @@ Widget videoSeasonWidget(
                         Colors.black54,
                       ],
                     ),
-                    borderRadius: BorderRadius.vertical(
-                      bottom: StyleString.imgRadius,
-                    ),
+                    borderRadius: .vertical(bottom: Style.imgRadius),
                   ),
                   child: DefaultTextStyle.merge(
                     style: TextStyle(
@@ -102,26 +101,20 @@ Widget videoSeasonWidget(
                           DecoratedBox(
                             decoration: const BoxDecoration(
                               color: Colors.black45,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(4),
-                              ),
+                              borderRadius: .all(.circular(4)),
                             ),
                             child: Text(' $durationText '),
                           ),
                           const SizedBox(width: 6),
                         ],
                         if (video.stat case final stat?) ...[
-                          Text(
-                            '${NumUtils.numFormat(stat.play)}播放',
-                          ),
+                          Text('${NumUtils.numFormat(stat.play)}播放'),
                           const SizedBox(width: 6),
-                          Text(
-                            '${NumUtils.numFormat(stat.danmu)}弹幕',
-                          ),
+                          Text('${NumUtils.numFormat(stat.danmu)}弹幕'),
                         ],
                         const Spacer(),
                         Image.asset(
-                          'assets/images/play.png',
+                          Assets.play,
                           width: 50,
                           height: 50,
                           cacheHeight: 50.cacheSize(context),

@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models_new/live/live_feed_index/card_data_list_item.dart';
@@ -9,10 +9,12 @@ import 'package:flutter/material.dart';
 // 视频卡片 - 垂直布局
 class LiveCardVApp extends StatelessWidget {
   final CardLiveItem item;
+  final bool showFirstFrame;
 
   const LiveCardVApp({
     super.key,
     required this.item,
+    this.showFirstFrame = false,
   });
 
   @override
@@ -30,7 +32,7 @@ class LiveCardVApp extends StatelessWidget {
         child: Column(
           children: [
             AspectRatio(
-              aspectRatio: StyleString.aspectRatio,
+              aspectRatio: Style.aspectRatio,
               child: LayoutBuilder(
                 builder: (context, boxConstraints) {
                   double maxWidth = boxConstraints.maxWidth;
@@ -39,7 +41,7 @@ class LiveCardVApp extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: [
                       NetworkImgLayer(
-                        src: item.cover!,
+                        src: showFirstFrame ? item.systemCover : item.cover,
                         width: maxWidth,
                         height: maxHeight,
                         type: .emote,

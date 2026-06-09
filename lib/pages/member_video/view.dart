@@ -1,10 +1,12 @@
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/member/contribute_type.dart';
 import 'package:PiliPlus/models_new/space/space_archive/item.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart';
 import 'package:PiliPlus/pages/member/controller.dart';
 import 'package:PiliPlus/pages/member_video/controller.dart';
 import 'package:PiliPlus/pages/member_video/widgets/video_card_h_member_video.dart';
@@ -40,7 +42,12 @@ class MemberVideo extends StatefulWidget {
 }
 
 class _MemberVideoState extends State<MemberVideo>
-    with AutomaticKeepAliveClientMixin, GridMixin {
+    with
+        AutomaticKeepAliveClientMixin,
+        GridMixin,
+        SingleTickerProviderStateMixin,
+        BaseFabMixin,
+        LazyFabMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -110,8 +117,7 @@ class _MemberVideoState extends State<MemberVideo>
         ],
       ),
     );
-    if (widget.type == ContributeType.video &&
-        _controller.fromViewAid?.isNotEmpty == true) {
+    if (_controller.isVideo && _controller.fromViewAid?.isNotEmpty == true) {
       if (_index == null) {
         _scrollController =
             PrimaryScrollController.of(this.context)
@@ -121,32 +127,53 @@ class _MemberVideoState extends State<MemberVideo>
       return Stack(
         clipBehavior: Clip.none,
         children: [
-          child,
+          NotificationListener<UserScrollNotification>(
+            onNotification: (notification) {
+              final direction = notification.direction;
+              if (direction == .forward) {
+                showFab();
+              } else if (direction == .reverse) {
+                hideFab();
+              }
+              return false;
+            },
+            child: child,
+          ),
           Obx(
             () => !_controller.isLocating.value
                 ? Positioned(
                     right: kFloatingActionButtonMargin,
-                    bottom: kFloatingActionButtonMargin + padding.bottom,
-                    child: FloatingActionButton.extended(
-                      onPressed: () {
-                        final fromViewAid = _controller.fromViewAid;
-                        _controller.isLocating.value = true;
-                        final locatedIndex =
-                            _controller.loadingState.value.dataOrNull
-                                ?.indexWhere((i) => i.param == fromViewAid) ??
-                            -1;
-                        if (locatedIndex == -1) {
-                          _controller
-                            ..lastAid = fromViewAid
-                            ..reload = true
-                            ..page = 0
-                            ..loadingState.value = LoadingState.loading()
-                            ..queryData();
-                        } else {
-                          _jumpToIndex(locatedIndex);
-                        }
-                      },
-                      label: const Text('定位至上次观看'),
+                    bottom: 0,
+                    child: SlideTransition(
+                      position: fabAnimation,
+                      child: Padding(
+                        padding: .only(
+                          bottom: padding.bottom + kFloatingActionButtonMargin,
+                        ),
+                        child: FloatingActionButton.extended(
+                          onPressed: () {
+                            final fromViewAid = _controller.fromViewAid;
+                            _controller.isLocating.value = true;
+                            final locatedIndex =
+                                _controller.loadingState.value.dataOrNull
+                                    ?.indexWhere(
+                                      (i) => i.param == fromViewAid,
+                                    ) ??
+                                -1;
+                            if (locatedIndex == -1) {
+                              _controller
+                                ..lastAid = fromViewAid
+                                ..reload = true
+                                ..page = 0
+                                ..loadingState.value = LoadingState.loading()
+                                ..queryData();
+                            } else {
+                              _jumpToIndex(locatedIndex);
+                            }
+                          },
+                          label: const Text('定位至上次观看'),
+                        ),
+                      ),
                     ),
                   )
                 : const SizedBox.shrink(),
@@ -173,98 +200,11 @@ class _MemberVideoState extends State<MemberVideo>
         response != null && response.isNotEmpty
             ? SliverMainAxisGroup(
                 slivers: [
-                  SliverPersistentHeader(
-                    pinned: false,
-                    floating: true,
-                    delegate: CustomSliverPersistentHeaderDelegate(
-                      extent: 40,
-                      bgColor: theme.colorScheme.surface,
-                      child: SizedBox(
-                        height: 40,
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Obx(
-                                () {
-                                  final count = _controller.count.value;
-                                  return Text(
-                                    count != -1 ? '共$count视频' : '',
-                                    style: const TextStyle(fontSize: 13),
-                                  );
-                                },
-                              ),
-                            ),
-                            Obx(
-                              () {
-                                final episodicButton =
-                                    _controller.episodicButton.value;
-                                return episodicButton.uri?.isNotEmpty == true
-                                    ? Container(
-                                        height: 35,
-                                        padding: EdgeInsets.only(
-                                          left: _controller.count.value != -1
-                                              ? 6
-                                              : 0,
-                                        ),
-                                        child: TextButton.icon(
-                                          onPressed: _controller.toViewPlayAll,
-                                          icon: Icon(
-                                            Icons.play_circle_outline_rounded,
-                                            size: 16,
-                                            color: theme.colorScheme.secondary,
-                                          ),
-                                          label: Text(
-                                            episodicButton.text ?? '播放全部',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color:
-                                                  theme.colorScheme.secondary,
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox.shrink();
-                              },
-                            ),
-                            const Spacer(),
-                            SizedBox(
-                              height: 35,
-                              child: TextButton.icon(
-                                onPressed: _controller.queryBySort,
-                                icon: Icon(
-                                  Icons.sort,
-                                  size: 16,
-                                  color: theme.colorScheme.secondary,
-                                ),
-                                label: Obx(
-                                  () => Text(
-                                    widget.type == ContributeType.video
-                                        ? _controller.order.value == 'pubdate'
-                                              ? '最新发布'
-                                              : '最多播放'
-                                        : _controller.sort.value == 'desc'
-                                        ? '默认'
-                                        : '倒序',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: theme.colorScheme.secondary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildHeader(theme),
                   SliverGrid.builder(
                     gridDelegate: gridDelegate,
                     itemBuilder: (context, index) {
-                      if (widget.type != ContributeType.season &&
+                      if (widget.type != .season &&
                           index == response.length - 1) {
                         _controller.onLoadMore();
                       }
@@ -283,5 +223,80 @@ class _MemberVideoState extends State<MemberVideo>
         onReload: _controller.onReload,
       ),
     };
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return SliverFloatingHeaderWidget(
+      backgroundColor: theme.colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 2.5, 8, 2.5),
+        child: Row(
+          children: [
+            ?_buildCount(),
+            ?_buildEpisodeBtn(theme),
+            const Spacer(),
+            _buildSortBtn(theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildCount() {
+    final count = _controller.count;
+    if (count != null) {
+      return Text(
+        '共$count视频',
+        style: const TextStyle(fontSize: 13),
+      );
+    }
+    return null;
+  }
+
+  Widget? _buildEpisodeBtn(ThemeData theme) {
+    final episodicButton = _controller.episodicButton;
+    if (episodicButton?.uri?.isNotEmpty ?? false) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: _controller.count != null ? 6 : 0,
+        ),
+        child: TextButton.icon(
+          style: Style.buttonStyle,
+          onPressed: _controller.toViewPlayAll,
+          icon: Icon(
+            Icons.play_circle_outline_rounded,
+            size: 16,
+            color: theme.colorScheme.secondary,
+          ),
+          label: Text(
+            episodicButton?.text ?? '播放全部',
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.colorScheme.secondary,
+            ),
+          ),
+        ),
+      );
+    }
+    return null;
+  }
+
+  Widget _buildSortBtn(ThemeData theme) {
+    return TextButton.icon(
+      style: Style.buttonStyle,
+      onPressed: _controller.queryBySort,
+      icon: Icon(
+        Icons.sort,
+        size: 16,
+        color: theme.colorScheme.secondary,
+      ),
+      label: Text(
+        _controller.isVideo ? _controller.order.label : _controller.sort.label,
+        style: TextStyle(
+          fontSize: 13,
+          color: theme.colorScheme.secondary,
+        ),
+      ),
+    );
   }
 }

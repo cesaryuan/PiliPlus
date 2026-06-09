@@ -1,5 +1,5 @@
-import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/dynamic_card.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:flutter/material.dart';
@@ -8,13 +8,10 @@ import 'package:waterfall_flow/waterfall_flow.dart'
     show SliverWaterfallFlowDelegate;
 
 mixin DynMixin {
-  late double maxWidth;
-
   late final dynGridDelegate =
       SliverWaterfallFlowDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: Grid.smallCardWidth * 2,
         crossAxisSpacing: 4,
-        afterCalc: (value) => maxWidth = value,
       );
 
   Widget buildPage(Widget child) {
@@ -26,7 +23,6 @@ mixin DynMixin {
         final maxWidth = constraints.crossAxisExtent;
         final cardWidth = Grid.smallCardWidth * 2;
         final flag = cardWidth < maxWidth;
-        this.maxWidth = flag ? cardWidth : maxWidth;
         return SliverPadding(
           padding: EdgeInsets.symmetric(
             horizontal: flag ? (maxWidth - cardWidth) / 2 : 0,
@@ -41,7 +37,7 @@ mixin DynMixin {
     crossAxisSpacing: 4,
     mainAxisSpacing: 4,
     maxCrossAxisExtent: Grid.smallCardWidth * 2,
-    childAspectRatio: StyleString.aspectRatio,
+    childAspectRatio: Style.aspectRatio,
     mainAxisExtent: 50,
   );
 
@@ -76,7 +72,6 @@ class SliverWaterfallFlowDelegateWithMaxCrossAxisExtent
     super.collectGarbage,
     super.viewportBuilder,
     super.closeToTrailing,
-    this.afterCalc,
   }) : assert(maxCrossAxisExtent >= 0);
 
   /// The maximum extent of tiles in the cross axis.
@@ -95,8 +90,6 @@ class SliverWaterfallFlowDelegateWithMaxCrossAxisExtent
   int? crossAxisCount;
   double? crossAxisExtent;
 
-  final ValueChanged<double>? afterCalc;
-
   @override
   int getCrossAxisCount(SliverConstraints constraints) {
     final crossAxisExtent = constraints.crossAxisExtent;
@@ -106,10 +99,6 @@ class SliverWaterfallFlowDelegateWithMaxCrossAxisExtent
     this.crossAxisExtent = crossAxisExtent;
     crossAxisCount = (crossAxisExtent / (maxCrossAxisExtent + crossAxisSpacing))
         .ceil();
-    afterCalc?.call(
-      (crossAxisExtent - ((crossAxisCount! - 1) * crossAxisSpacing)) /
-          crossAxisCount!,
-    );
     return crossAxisCount!;
   }
 

@@ -26,17 +26,9 @@ jobs:
           channel: stable
           flutter-version-file: pubspec.yaml
 
-      - name: apply modal barrier patch
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $env:GITHUB_WORKSPACE\lib\scripts\modal_barrier_patch.diff || true
+      - name: Apply Patch
         shell: pwsh
-        continue-on-error: true
-
-      - name: apply mouse cursor patch
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $env:GITHUB_WORKSPACE\lib\scripts\mouse_cursor_patch.diff || true
-        shell: pwsh
-        continue-on-error: true
+        run: lib/scripts/patch.ps1 windows
 
       - name: Add fastforge and Inno Setup
         run: |
@@ -64,7 +56,6 @@ jobs:
           mv dist/**/*.exe PiliPlus-Win-Setup/PiliPlus_windows_${{env.version}}_x64_setup.exe
 
       - name: Compress
-        if: ${{ github.event.inputs.tag != '' }}
         run: |
           Compress-Archive -Path "Release/PiliPlus-Win" -DestinationPath "PiliPlus_windows_${{env.version}}_x64_portable.zip"
         shell: pwsh
@@ -82,9 +73,9 @@ jobs:
       - name: Upload windows file release
         uses: actions/upload-artifact@v7
         with:
-          archive: true
-          name: PiliPlus_windows_${{env.version}}_x64_portable
-          path: Release
+          archive: false
+          name: Windows-file-x64-release
+          path: PiliPlus_windows_*.zip
 
       - name: Upload windows setup release
         uses: actions/upload-artifact@v7

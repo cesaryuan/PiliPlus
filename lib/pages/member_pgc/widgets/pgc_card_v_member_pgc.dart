@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models_new/space/space_archive/item.dart';
@@ -22,9 +22,9 @@ class PgcCardVMemberPgc extends StatelessWidget {
       cover: item.cover,
     );
     return Card(
-      shape: const RoundedRectangleBorder(borderRadius: StyleString.mdRadius),
+      shape: const RoundedRectangleBorder(borderRadius: Style.mdRadius),
       child: InkWell(
-        borderRadius: StyleString.mdRadius,
+        borderRadius: Style.mdRadius,
         onTap: () => PageUtils.viewPgc(seasonId: item.param),
         onLongPress: onLongPress,
         onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,

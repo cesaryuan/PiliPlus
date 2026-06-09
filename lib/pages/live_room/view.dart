@@ -2,14 +2,18 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/assets.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/common/widgets/extra_hittest_stack.dart';
 import 'package:PiliPlus/common/widgets/flutter/page/page_view.dart';
+import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
 import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
+import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models/common/live/live_contribution_rank_type.dart';
@@ -17,6 +21,7 @@ import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
 import 'package:PiliPlus/pages/live_room/contribution_rank/controller.dart';
+import 'package:PiliPlus/pages/live_room/contribution_rank/view.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_card.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_panel.dart';
@@ -30,18 +35,22 @@ import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
+import 'package:PiliPlus/utils/max_screen_size.dart';
+import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:canvas_danmaku/canvas_danmaku.dart';
-import 'package:floating/floating.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
+import 'package:canvas_danmaku/danmaku_screen.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart' hide PageView;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -56,7 +65,8 @@ class LiveRoomPage extends StatefulWidget {
 }
 
 class _LiveRoomPageState extends State<LiveRoomPage>
-    with WidgetsBindingObserver, RouteAware {
+    with WidgetsBindingObserver, RouteAware, RouteAwareMixin {
+  late final fullScreenSCWidth = Pref.fullScreenSCWidth;
   final String heroTag = Utils.generateRandomString(6);
   late final LiveRoomController _liveRoomController;
   late final PlPlayerController plPlayerController;
@@ -70,38 +80,47 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    addObserverMobile(this);
     _liveRoomController = Get.put(
       LiveRoomController(heroTag),
       tag: heroTag,
     );
-    plPlayerController = _liveRoomController.plPlayerController;
-    PlPlayerController.setPlayCallBack(plPlayerController.play);
-    plPlayerController
-      ..autoEnterFullscreen()
+    plPlayerController = _liveRoomController.plPlayerController
       ..addStatusLister(playerListener);
+    PlPlayerController.setPlayCallBack(plPlayerController.play);
+    if (plPlayerController.removeSafeArea) {
+      hideSystemBar();
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    PageUtils.routeObserver.subscribe(
-      this,
-      ModalRoute.of(context)! as PageRoute,
-    );
-    padding = MediaQuery.viewPaddingOf(context);
+    if (plPlayerController.removeSafeArea) {
+      padding = .zero;
+    } else {
+      padding = MediaQuery.viewPaddingOf(context);
+    }
     final size = MediaQuery.sizeOf(context);
     maxWidth = size.width;
     maxHeight = size.height;
+    isWindowMode = MaxScreenSize.isWindowMode(
+      width: maxWidth * plPlayerController.uiScale,
+      height: maxHeight * plPlayerController.uiScale,
+    );
     isPortrait = size.isPortrait;
+    plPlayerController.screenRatio = maxHeight / maxWidth;
   }
 
   @override
   Future<void> didPopNext() async {
-    WidgetsBinding.instance.addObserver(this);
-    plPlayerController
-      ..isLive = true
-      ..danmakuController = _liveRoomController.danmakuController;
+    addObserverMobile(this);
+    if (!plPlayerController.isLive) {
+      plPlayerController.isLive = true;
+      _liveRoomController.isLoaded.refresh();
+    }
+    plPlayerController.danmakuController =
+        _liveRoomController.danmakuController;
     PlPlayerController.setPlayCallBack(plPlayerController.play);
     _liveRoomController.startLiveTimer();
     if (plPlayerController.playerStatus.isPlaying &&
@@ -125,7 +144,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   @override
   void didPushNext() {
-    WidgetsBinding.instance.removeObserver(this);
+    removeObserverMobile(this);
     plPlayerController.removeStatusLister(playerListener);
     _liveRoomController
       ..danmakuController?.clear()
@@ -152,8 +171,8 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   @override
   void dispose() {
+    removeObserverMobile(this);
     videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
-    WidgetsBinding.instance.removeObserver(this);
     if (Platform.isAndroid && !plPlayerController.setSystemBrightness) {
       ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
     }
@@ -161,7 +180,6 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     plPlayerController
       ..removeStatusLister(playerListener)
       ..dispose();
-    PageUtils.routeObserver.unsubscribe(this);
     for (final e in LiveContributionRankType.values) {
       Get.delete<ContributionRankController>(
         tag: '${_liveRoomController.roomId}${e.name}',
@@ -172,19 +190,14 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (plPlayerController.visible = state == .resumed) {
       if (!plPlayerController.showDanmaku) {
-        _liveRoomController.startLiveTimer();
+        _liveRoomController
+          ..refreshMsgIfNeeded()
+          ..startLiveTimer();
         plPlayerController.showDanmaku = true;
-        if (isFullScreen && Platform.isIOS) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!_liveRoomController.isPortrait.value) {
-              landscape();
-            }
-          });
-        }
       }
-    } else if (state == AppLifecycleState.paused) {
+    } else if (state == .paused) {
       _liveRoomController.cancelLiveTimer();
       plPlayerController
         ..showDanmaku = false
@@ -194,13 +207,14 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   late double maxWidth;
   late double maxHeight;
+  bool isWindowMode = false;
   late EdgeInsets padding;
   late bool isPortrait;
 
   @override
   Widget build(BuildContext context) {
     Widget child;
-    if (Platform.isAndroid && Floating().isPipMode) {
+    if (Platform.isAndroid && AndroidHelper.isPipMode) {
       child = videoPlayerPanel(
         isFullScreen,
         width: maxWidth,
@@ -231,9 +245,6 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     Alignment alignment = Alignment.center,
     bool needDm = true,
   }) {
-    if (!plPlayerController.isLive) {
-      return const SizedBox.shrink();
-    }
     if (!isFullScreen && !plPlayerController.isDesktopPip) {
       _liveRoomController.fsSC.value = null;
     }
@@ -241,7 +252,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     Widget player = Obx(
       key: playerKey,
       () {
-        if (_liveRoomController.isLoaded.value) {
+        if (_liveRoomController.isLoaded.value && plPlayerController.isLive) {
           final roomInfoH5 = _liveRoomController.roomInfoH5.value;
           return PLVideoPlayer(
             maxWidth: width,
@@ -258,6 +269,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               onPlayAudio: _liveRoomController.queryLiveUrl,
               isPortrait: isPortrait,
               liveController: _liveRoomController,
+              onlineWidget: onlineWidget,
             ),
             bottomControl: BottomControl(
               plPlayerController: plPlayerController,
@@ -312,28 +324,25 @@ class _LiveRoomPageState extends State<LiveRoomPage>
           Positioned(
             left: padding.left + 25,
             bottom: 25,
-            width: 255,
+            width: fullScreenSCWidth,
             child: Obx(() {
               final item = _liveRoomController.fsSC.value;
               if (item == null) {
                 return const SizedBox.shrink();
               }
               try {
-                return Stack(
+                return ExtraHitTestStack(
                   key: ValueKey(item.id),
                   clipBehavior: Clip.none,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6, top: 6),
-                      child: SuperChatCard(
-                        item: item,
-                        onRemove: () => _liveRoomController.fsSC.value = null,
-                        onReport: () => _liveRoomController.reportSC(item),
-                      ),
+                    SuperChatCard(
+                      item: item,
+                      onRemove: () => _liveRoomController.fsSC.value = null,
+                      onReport: () => _liveRoomController.reportSC(item),
                     ),
                     Positioned(
-                      right: 0,
-                      top: 0,
+                      right: -6,
+                      top: -6,
                       child: iconButton(
                         size: 24,
                         iconSize: 14,
@@ -354,7 +363,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         ],
       );
     }
-    return PopScope(
+    return popScope(
       canPop: !isFullScreen && !plPlayerController.isDesktopPip,
       onPopInvokedWithResult: plPlayerController.onPopInvokedWithResult,
       child: player,
@@ -388,7 +397,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                   );
                 } else {
                   child = Image.asset(
-                    'assets/images/live/default_bg.webp',
+                    Assets.livingBackground,
                     fit: BoxFit.cover,
                     width: maxWidth,
                     height: maxHeight,
@@ -401,9 +410,12 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               },
             ),
           Scaffold(
+            primary: !plPlayerController.removeSafeArea,
             resizeToAvoidBottomInset: false,
             backgroundColor: Colors.transparent,
-            appBar: _buildAppBar(isFullScreen),
+            appBar: isWindowMode && isFullScreen && !isPortrait
+                ? null
+                : _buildAppBar(isFullScreen),
             body: isPortrait
                 ? Obx(
                     () {
@@ -421,8 +433,10 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   }
 
   Widget _buildPH(bool isFullScreen) {
-    final height = maxWidth / StyleString.aspectRatio16x9;
-    final videoHeight = isFullScreen ? maxHeight - padding.top : height;
+    final height = maxWidth / Style.aspectRatio16x9;
+    final videoHeight = isFullScreen
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
+        : height;
     final bottomHeight = maxHeight - padding.top - height - kToolbarHeight;
     return Column(
       children: [
@@ -450,7 +464,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   Widget _buildPP(bool isFullScreen) {
     final bottomHeight = 70 + padding.bottom;
     final videoHeight = isFullScreen
-        ? maxHeight - padding.top
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
         : maxHeight - bottomHeight;
     return Stack(
       clipBehavior: Clip.none,
@@ -489,9 +503,47 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     );
   }
 
+  Widget get onlineWidget => GestureDetector(
+    onTap: _showRank,
+    child: Obx(() {
+      if (_liveRoomController.onlineCount.value case final onlineCount?) {
+        return Text(
+          '高能观众($onlineCount)',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }),
+  );
+
+  void _showRank() {
+    if (_liveRoomController.ruid case final ruid?) {
+      final heightFactor = PlatformUtils.isMobile && !isPortrait ? 1.0 : 0.7;
+      showModalBottomSheet(
+        context: context,
+        useSafeArea: true,
+        clipBehavior: .hardEdge,
+        isScrollControlled: true,
+        constraints: const BoxConstraints(maxWidth: 450),
+        builder: (context) => FractionallySizedBox(
+          widthFactor: 1.0,
+          heightFactor: heightFactor,
+          child: ContributionRankPanel(
+            ruid: ruid,
+            roomId: _liveRoomController.roomId,
+          ),
+        ),
+      );
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(bool isFullScreen) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
     return AppBar(
+      primary: !plPlayerController.removeSafeArea,
       toolbarHeight: isFullScreen ? 0 : null,
       backgroundColor: Colors.transparent,
       foregroundColor: Colors.white,
@@ -538,7 +590,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                                     ),
                                   ),
                                 ),
-                                _liveRoomController.onlineWidget,
+                                onlineWidget,
                               ],
                             ),
                             Row(
@@ -586,7 +638,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               ),
               if (PlatformUtils.isMobile)
                 PopupMenuItem(
-                  onTap: () => Utils.shareText(liveUrl),
+                  onTap: () => ShareUtils.shareText(liveUrl),
                   child: Row(
                     spacing: 10,
                     mainAxisSize: MainAxisSize.min,
@@ -665,7 +717,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     videoWidth = maxWidth - rightWidth - padding.horizontal;
     final videoHeight = maxHeight - padding.top - kToolbarHeight;
     final width = isFullScreen ? maxWidth : videoWidth;
-    final height = isFullScreen ? maxHeight - padding.top : videoHeight;
+    final height = isFullScreen
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
+        : videoHeight;
     return Padding(
       padding: isFullScreen
           ? EdgeInsets.zero
@@ -733,7 +787,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               horizontalDragGestureRecognizer:
                   CustomHorizontalDragGestureRecognizer.new,
               children: [
-                KeepAliveWrapper(builder: (context) => chat()),
+                KeepAliveWrapper(child: chat()),
                 SuperChatPanel(
                   key: scKey,
                   controller: _liveRoomController,
@@ -834,7 +888,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                             ),
                           ),
                           Positioned(
-                            right: -12,
+                            left: 30,
                             top: -12,
                             child: Obx(() {
                               final likeClickTime =
@@ -964,10 +1018,9 @@ class _BorderIndicator extends LeafRenderObjectWidget {
 
 class _RenderBorderIndicator extends RenderBox {
   _RenderBorderIndicator({
-    required Radius radius,
-    required bool isLeft,
-  }) : _radius = radius,
-       _isLeft = isLeft;
+    required this._radius,
+    required this._isLeft,
+  });
 
   Radius _radius;
   Radius get radius => _radius;

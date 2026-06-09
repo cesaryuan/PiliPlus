@@ -1,11 +1,12 @@
 import 'package:PiliPlus/common/skeleton/video_reply.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/colored_box_transition.dart';
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_pinned_header.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
-    show ReplyInfo, Mode;
+    show ReplyInfo;
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
@@ -15,6 +16,7 @@ import 'package:PiliPlus/utils/extension/widget_ext.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
+import 'package:fixnum/fixnum.dart' show Int64;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -32,6 +34,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
     required this.isVideoDetail,
     required this.replyType,
     this.isNested = false,
+    this.upMid,
   });
   final int? id;
   final int oid;
@@ -41,6 +44,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
   final bool isVideoDetail;
   final int replyType;
   final bool isNested;
+  final Int64? upMid;
 
   @override
   State<VideoReplyReplyPanel> createState() => _VideoReplyReplyPanelState();
@@ -223,7 +227,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
             replyLevel: 2,
             needDivider: false,
             onReply: (replyItem) => _controller.onReply(replyItem, index: -1),
-            upMid: _controller.upMid,
+            upMid: widget.upMid ?? _controller.upMid,
             onCheckReply: (item) =>
                 _controller.onCheckReply(item, isManual: true),
           ),
@@ -240,52 +244,43 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
   }
 
   Widget _sortWidget(ThemeData theme) {
-    return SliverPersistentHeader(
-      pinned: true,
-      delegate: CustomSliverPersistentHeaderDelegate(
-        extent: 40,
-        bgColor: theme.colorScheme.surface,
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Obx(
-                () {
-                  final count = _controller.count.value;
-                  return count != -1
-                      ? Text(
-                          '相关回复共${NumUtils.numFormat(count)}条',
-                          style: const TextStyle(fontSize: 13),
-                        )
-                      : const SizedBox.shrink();
-                },
+    return SliverPinnedHeader(
+      backgroundColor: theme.colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 2.5, 6, 2.5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Obx(
+              () {
+                final count = _controller.count.value;
+                return count != -1
+                    ? Text(
+                        '相关回复共${NumUtils.numFormat(count)}条',
+                        style: const TextStyle(fontSize: 13),
+                      )
+                    : const SizedBox.shrink();
+              },
+            ),
+            TextButton.icon(
+              style: Style.buttonStyle,
+              onPressed: _controller.queryBySort,
+              icon: Icon(
+                Icons.sort,
+                size: 16,
+                color: theme.colorScheme.secondary,
               ),
-              SizedBox(
-                height: 35,
-                child: TextButton.icon(
-                  onPressed: _controller.queryBySort,
-                  icon: Icon(
-                    Icons.sort,
-                    size: 16,
+              label: Obx(
+                () => Text(
+                  _controller.sortType.value.text!,
+                  style: TextStyle(
+                    fontSize: 13,
                     color: theme.colorScheme.secondary,
-                  ),
-                  label: Obx(
-                    () => Text(
-                      _controller.mode.value == Mode.MAIN_LIST_HOT
-                          ? '按热度'
-                          : '按时间',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: theme.colorScheme.secondary,
-                      ),
-                    ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

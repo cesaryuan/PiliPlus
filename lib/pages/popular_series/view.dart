@@ -1,9 +1,9 @@
 import 'dart:math';
 
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_h.dart';
 import 'package:PiliPlus/common/widgets/view_sliver_safe_area.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -72,6 +72,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                   PageUtils.toVideoPage(
                     bvid: item.bvid,
                     cid: item.cid!,
+                    dimension: item.dimension,
                     extraArguments: {
                       'sourceType': SourceType.playlist,
                       'favTitle': '每周必看 ${config?.label ?? ''}',
@@ -143,7 +144,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                   return ListTile(
                     dense: true,
                     minTileHeight: 44,
-                    tileColor: isCurr ? Theme.of(context).highlightColor : null,
+                    enabled: !isCurr,
                     onTap: () {
                       Get.back();
                       if (!isCurr) {
@@ -156,7 +157,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                       item.name!,
                       style: const TextStyle(fontSize: 14),
                     ),
-                    trailing: isCurr ? const Icon(Icons.check, size: 18) : null,
+                    trailing: isCurr ? const Icon(Icons.check, size: 20) : null,
                     contentPadding: const EdgeInsetsGeometry.symmetric(
                       horizontal: 16,
                     ),
@@ -201,17 +202,11 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
         ],
       );
     }
-    final height = MediaQuery.textScalerOf(context).scale(27);
-    return SliverPersistentHeader(
-      floating: true,
-      delegate: CustomSliverPersistentHeaderDelegate(
-        extent: height,
-        child: Container(
-          height: height,
-          padding: const EdgeInsets.only(left: 14, bottom: 7),
-          child: child,
-        ),
-        bgColor: colorScheme.surface,
+    return SliverFloatingHeaderWidget(
+      backgroundColor: colorScheme.surface,
+      child: Padding(
+        padding: const .only(left: 14, bottom: 7),
+        child: child,
       ),
     );
   }

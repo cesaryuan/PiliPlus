@@ -10,11 +10,9 @@ class MemberShopItem extends StatelessWidget {
   const MemberShopItem({
     super.key,
     required this.item,
-    required this.maxWidth,
   });
 
   final SpaceShopItem item;
-  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -34,11 +32,13 @@ class MemberShopItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            NetworkImgLayer(
-              type: .emote,
-              src: item.cover?.url,
-              width: maxWidth,
-              height: maxWidth,
+            LayoutBuilder(
+              builder: (context, constraints) => NetworkImgLayer(
+                type: .emote,
+                src: item.cover?.url,
+                width: constraints.maxWidth,
+                height: constraints.maxWidth,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),

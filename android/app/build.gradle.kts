@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -16,10 +15,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -49,15 +44,29 @@ android {
         }
     }
 
+    buildFeatures {
+        if (project.hasProperty("dev")) {
+            resValues = true
+        }
+    }
+
     buildTypes {
         all {
             signingConfig = config ?: signingConfigs["debug"]
         }
         release {
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            if (project.hasProperty("dev")) {
+                applicationIdSuffix = ".dev"
+                resValue(
+                    type = "string",
+                    name = "app_name",
+                    value = "PiliPlus dev",
+                )
+            }
+//            proguardFiles(
+//                getDefaultProguardFile("proguard-android-optimize.txt"),
+//                "proguard-rules.pro"
+//            )
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -69,6 +78,12 @@ android {
         variant.outputs.forEach { output ->
             (output as ApkVariantOutputImpl).versionCodeOverride = flutter.versionCode
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 

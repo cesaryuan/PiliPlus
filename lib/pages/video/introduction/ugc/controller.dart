@@ -13,7 +13,9 @@ import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/video/source_type.dart';
 import 'package:PiliPlus/models_new/member_card_info/data.dart';
+import 'package:PiliPlus/models_new/relation/data.dart';
 import 'package:PiliPlus/models_new/video/video_ai_conclusion/model_result.dart';
+import 'package:PiliPlus/models_new/video/video_detail/dimension.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/models_new/video/video_detail/section.dart';
@@ -22,13 +24,13 @@ import 'package:PiliPlus/models_new/video/video_detail/stat_detail.dart';
 import 'package:PiliPlus/models_new/video/video_detail/ugc_season.dart';
 import 'package:PiliPlus/pages/common/common_intro_controller.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
-import 'package:PiliPlus/pages/video/pay_coins/view.dart';
 import 'package:PiliPlus/pages/video/related/controller.dart';
 import 'package:PiliPlus/pages/video/reply/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
-import 'package:PiliPlus/utils/extension/context_ext.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
+import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/global_data.dart';
@@ -36,6 +38,7 @@ import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:expandable/expandable.dart';
@@ -52,7 +55,7 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
   // up主粉丝数
   final Rx<MemberCardInfoData> userStat = MemberCardInfoData().obs;
   // 关注状态 默认未关注
-  late final RxMap followStatus = {}.obs;
+  late final Rx<RelationData> followStatus = Rx(RelationData());
   late final RxMap staffRelations = {}.obs;
 
   // 是否点踩
@@ -75,7 +78,7 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     );
     if (!alwaysExpandIntroPanel && Pref.expandIntroPanelH) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!expandableCtr.expanded && Get.context!.isLandscape) {
+        if (!expandableCtr.expanded && !DeviceUtils.size.isPortrait) {
           expandableCtr.toggle();
         }
       });
@@ -90,6 +93,14 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     queryVideoTags();
     final res = await VideoHttp.videoIntro(bvid: bvid);
     if (res case Success(:final response)) {
+      if (response.redirectUrl != null &&
+          videoDetailCtr.epId == null &&
+          videoDetailCtr.seasonId == null) {
+        if (!isClosed) {
+          PageUtils.viewPgcFromUri(response.redirectUrl!, off: true);
+        }
+        return;
+      }
       videoPlayerServiceHandler?.onVideoDetailChange(
         response,
         cid.value,
@@ -264,31 +275,8 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     }
   }
 
-  // 投币
   @override
-  void actionCoinVideo() {
-    if (!isLogin) {
-      SmartDialog.showToast('账号未登录');
-      return;
-    }
-
-    int copyright = videoDetail.value.copyright ?? 1;
-    if ((copyright != 1 && coinNum.value >= 1) || coinNum.value >= 2) {
-      SmartDialog.showToast('达到投币上限啦~');
-      return;
-    }
-
-    if (GlobalData().coins != null && GlobalData().coins! < 1) {
-      SmartDialog.showToast('硬币不足');
-      // return;
-    }
-
-    PayCoinsPage.toPayCoinsPage(
-      onPayCoin: coinVideo,
-      copyright: copyright,
-      hasCoin: coinNum.value == 1,
-    );
-  }
+  int get copyright => videoDetail.value.copyright ?? 1;
 
   @override
   (Object, int) get getFavRidType => (IdUtils.bv2av(bvid), 2);
@@ -351,7 +339,7 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
                 ),
                 onTap: () {
                   Get.back();
-                  Utils.shareText(
+                  ShareUtils.shareText(
                     '${videoDetail.title} '
                     'UP主: ${videoDetail.owner!.name!}'
                     ' - $videoUrl',
@@ -418,9 +406,9 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     if (videoDetail.owner == null || videoDetail.staff?.isNotEmpty == true) {
       return;
     }
-    final res = await UserHttp.hasFollow(videoDetail.owner!.mid!);
+    final res = await UserHttp.userRelation(videoDetail.owner!.mid!);
     if (res case Success(:final response)) {
-      if (response['special'] == 1) response['attribute'] = -10;
+      if (response.special == 1) response.attribute = -10;
       followStatus.value = response;
     }
   }
@@ -439,7 +427,7 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     if (mid == null) {
       return;
     }
-    int attr = followStatus['attribute'] ?? 0;
+    int attr = followStatus.value.attribute ?? 0;
     if (attr == 128) {
       final res = await VideoHttp.relationMod(
         mid: mid,
@@ -447,7 +435,9 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         reSrc: 11,
       );
       if (res.isSuccess) {
-        followStatus['attribute'] = 0;
+        followStatus
+          ..value.attribute = 0
+          ..refresh();
       }
       return;
     } else {
@@ -455,9 +445,11 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         context: context,
         mid: mid,
         isFollow: attr != 0,
-        followStatus: followStatus,
+        followStatus: followStatus.value,
         afterMod: (attribute) {
-          followStatus['attribute'] = attribute;
+          followStatus
+            ..value.attribute = attribute
+            ..refresh();
           Future.delayed(const Duration(milliseconds: 500), queryFollowStatus);
         },
       );
@@ -472,22 +464,33 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     try {
       final String bvid = episode.bvid ?? this.bvid;
       final int aid = episode.aid ?? IdUtils.bv2av(bvid);
-      final int? cid =
-          episode.cid ?? await SearchHttp.ab2c(aid: aid, bvid: bvid);
+      int? cid = episode.cid;
+      Dimension? dimension;
+      if (cid == null) {
+        if (await SearchHttp.ab2cWithDimension(aid: aid, bvid: bvid)
+            case final res?) {
+          cid = res.cid;
+          dimension = res.dimension;
+        }
+      }
       if (cid == null) {
         return false;
       }
+
       final String? cover = episode.cover;
 
       // 重新获取视频资源
-
       if (videoDetailCtr.isPlayAll) {
         if (videoDetailCtr.mediaList.indexWhere((item) => item.bvid == bvid) ==
             -1) {
+          if (dimension == null && episode is EpisodeItem) {
+            dimension = episode.page?.dimension;
+          }
           PageUtils.toVideoPage(
             bvid: bvid,
             cid: cid,
             cover: cover,
+            dimension: dimension,
           );
           return false;
         }

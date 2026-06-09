@@ -1,5 +1,5 @@
-import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/skeleton.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:flutter/material.dart';
 
 class FavPgcItemSkeleton extends StatelessWidget {
@@ -11,7 +11,7 @@ class FavPgcItemSkeleton extends StatelessWidget {
     return Skeleton(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: StyleString.safeSpace,
+          horizontal: Style.safeSpace,
           vertical: 5,
         ),
         child: Row(

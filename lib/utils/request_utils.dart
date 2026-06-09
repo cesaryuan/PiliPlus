@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
+import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/grpc/bilibili/im/type.pbenum.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show ReplyInfo;
@@ -18,6 +18,7 @@ import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/models/login/model.dart';
 import 'package:PiliPlus/models_new/fav/fav_detail/media.dart';
 import 'package:PiliPlus/models_new/later/list.dart';
+import 'package:PiliPlus/models_new/relation/data.dart';
 import 'package:PiliPlus/pages/common/multi_select/base.dart';
 import 'package:PiliPlus/pages/dynamics_tab/controller.dart';
 import 'package:PiliPlus/pages/fav_detail/controller.dart'
@@ -28,17 +29,19 @@ import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
+import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
-import 'package:gt3_flutter_plugin/gt3_flutter_plugin.dart';
 
 abstract final class RequestUtils {
   static Future<void> syncHistoryStatus() async {
@@ -98,12 +101,41 @@ abstract final class RequestUtils {
     }
   }
 
+  static Future<void> createFavTag(
+    BuildContext context,
+    ValueChanged<({int tagid, String tagName})> onSuccess,
+  ) async {
+    String tagName = '';
+    final onCreate = await showConfirmDialog(
+      context: context,
+      title: const Text('新建分组'),
+      content: TextFormField(
+        autofocus: true,
+        initialValue: tagName,
+        onChanged: (value) => tagName = value,
+        inputFormatters: [
+          LengthLimitingTextInputFormatter(16),
+        ],
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+      ),
+    );
+    if (onCreate) {
+      final res = await MemberHttp.createFollowTag(tagName);
+      if (res case Success(:final response)) {
+        onSuccess((tagid: response, tagName: tagName));
+        SmartDialog.showToast('创建成功');
+      } else {
+        res.toast();
+      }
+    }
+  }
+
   static Future<void> actionRelationMod({
     required BuildContext context,
     required dynamic mid,
     required bool isFollow,
     required ValueChanged<int>? afterMod,
-    Map? followStatus,
+    RelationData? followStatus,
   }) async {
     if (mid == null) {
       return;
@@ -122,8 +154,8 @@ abstract final class RequestUtils {
         res.toast();
       }
     } else {
-      if (followStatus?['tag'] == null) {
-        final res = await UserHttp.hasFollow(mid);
+      if (followStatus?.tag == null) {
+        final res = await UserHttp.userRelation(mid);
         if (res case Success(:final response)) {
           followStatus = response;
         } else {
@@ -133,7 +165,7 @@ abstract final class RequestUtils {
       }
 
       if (context.mounted) {
-        bool isSpecialFollowed = followStatus!['special'] == 1;
+        bool isSpecialFollowed = followStatus!.special == 1;
         String text = isSpecialFollowed ? '移除特别关注' : '加入特别关注';
         showDialog(
           context: context,
@@ -187,22 +219,18 @@ abstract final class RequestUtils {
                           expand: false,
                           snapSizes: [maxChildSize],
                           initialChildSize: maxChildSize,
-                          builder:
-                              (
-                                BuildContext context,
-                                ScrollController scrollController,
-                              ) {
-                                return GroupPanel(
-                                  mid: mid,
-                                  tags: followStatus!['tag'],
-                                  scrollController: scrollController,
-                                );
-                              },
+                          builder: (context, scrollController) {
+                            return GroupPanel(
+                              mid: mid,
+                              tags: followStatus!.tag,
+                              scrollController: scrollController,
+                            );
+                          },
                         );
                       },
                     );
-                    followStatus!['tag'] = result?.toList();
                     if (result != null) {
+                      followStatus!.tag = result.toList();
                       afterMod?.call(result.contains(-10) ? -10 : 2);
                     }
                   },
@@ -316,6 +344,7 @@ abstract final class RequestUtils {
             clearCookie: true,
           );
           final isSuccess = res.isSuccess;
+          final theme = ThemeUtils.theme;
           final actions = [
             if (!isSuccess)
               TextButton(
@@ -326,7 +355,7 @@ abstract final class RequestUtils {
                     '/webview',
                     parameters: {
                       'url':
-                          'https://www.bilibili.com/h5/comment/appeal?${Utils.themeUrl(Get.isDarkMode)}',
+                          'https://www.bilibili.com/h5/comment/appeal?${ThemeUtils.themeUrl(theme.isDark)}',
                     },
                   );
                 },
@@ -337,7 +366,7 @@ abstract final class RequestUtils {
                 onPressed: Get.back,
                 child: Text(
                   '关闭',
-                  style: TextStyle(color: Get.theme.colorScheme.outline),
+                  style: TextStyle(color: theme.colorScheme.outline),
                 ),
               ),
           ];
@@ -492,10 +521,6 @@ abstract final class RequestUtils {
     String vVoucher,
     ValueChanged<String> onSuccess,
   ) async {
-    if (Platform.isLinux) {
-      return;
-    }
-
     final res = await ValidateHttp.gaiaVgateRegister(vVoucher);
     if (!res.isSuccess) {
       res.toast();
@@ -547,118 +572,17 @@ abstract final class RequestUtils {
       }
     }
 
-    if (PlatformUtils.isDesktop) {
-      final json = await showDialog<Map<String, dynamic>>(
-        context: Get.context!,
-        builder: (context) => GeetestWebviewDialog(gt!, challenge!),
-      );
-      if (json != null) {
-        captchaData
-          ..validate = json['geetest_validate']
-          ..seccode = json['geetest_seccode']
-          ..geetest = GeetestData(
-            challenge: json['geetest_challenge'],
-            gt: gt!,
-          );
-        gaiaVgateValidate();
-      }
-      return;
+    final json = await GeetestWebviewDialog.geetest(gt!, challenge!);
+    if (json is Map) {
+      captchaData
+        ..validate = json['geetest_validate']
+        ..seccode = json['geetest_seccode']
+        ..geetest = GeetestData(
+          challenge: json['geetest_challenge'],
+          gt: gt,
+        );
+      gaiaVgateValidate();
     }
-
-    final registerData = Gt3RegisterData(
-      challenge: challenge,
-      gt: gt,
-      success: true,
-    );
-
-    Gt3FlutterPlugin()
-      ..addEventHandler(
-        onClose: (Map<String, dynamic> message) {
-          SmartDialog.showToast('关闭验证');
-        },
-        onResult: (Map<String, dynamic> message) {
-          if (kDebugMode) debugPrint("Captcha result: $message");
-          String code = message["code"];
-          if (code == "1") {
-            // 发送 message["result"] 中的数据向 B 端的业务服务接口进行查询
-            SmartDialog.showToast('验证成功');
-            final result = message['result'];
-            captchaData
-              ..validate = result?['geetest_validate']
-              ..seccode = result?['geetest_seccode']
-              ..geetest = GeetestData(
-                challenge: result?['geetest_challenge'],
-                gt: gt!,
-              );
-            gaiaVgateValidate();
-          } else {
-            // 终端用户完成验证失败，自动重试 If the verification fails, it will be automatically retried.
-            if (kDebugMode) debugPrint("Captcha result code : $code");
-          }
-        },
-        onError: (Map<String, dynamic> message) {
-          SmartDialog.showToast("Captcha onError: $message");
-          String code = message["code"];
-          // 处理验证中返回的错误 Handling errors returned in verification
-          if (Platform.isAndroid) {
-            // Android 平台
-            if (code == "-2") {
-              // Dart 调用异常 Call exception
-            } else if (code == "-1") {
-              // Gt3RegisterData 参数不合法 Parameter is invalid
-            } else if (code == "201") {
-              // 网络无法访问 Network inaccessible
-            } else if (code == "202") {
-              // Json 解析错误 Analysis error
-            } else if (code == "204") {
-              // WebView 加载超时，请检查是否混淆极验 SDK   Load timed out
-            } else if (code == "204_1") {
-              // WebView 加载前端页面错误，请查看日志 Error loading front-end page, please check the log
-            } else if (code == "204_2") {
-              // WebView 加载 SSLError
-            } else if (code == "206") {
-              // gettype 接口错误或返回为 null   API error or return null
-            } else if (code == "207") {
-              // getphp 接口错误或返回为 null    API error or return null
-            } else if (code == "208") {
-              // ajax 接口错误或返回为 null      API error or return null
-            } else {
-              // 更多错误码参考开发文档  More error codes refer to the development document
-              // https://docs.geetest.com/sensebot/apirefer/errorcode/android
-            }
-          }
-
-          if (Platform.isIOS) {
-            // iOS 平台
-            if (code == "-1009") {
-              // 网络无法访问 Network inaccessible
-            } else if (code == "-1004") {
-              // 无法查找到 HOST  Unable to find HOST
-            } else if (code == "-1002") {
-              // 非法的 URL  Illegal URL
-            } else if (code == "-1001") {
-              // 网络超时 Network timeout
-            } else if (code == "-999") {
-              // 请求被意外中断, 一般由用户进行取消操作导致 The interrupted request was usually caused by the user cancelling the operation
-            } else if (code == "-21") {
-              // 使用了重复的 challenge   Duplicate challenges are used
-              // 检查获取 challenge 是否进行了缓存  Check if the fetch challenge is cached
-            } else if (code == "-20") {
-              // 尝试过多, 重新引导用户触发验证即可 Try too many times, lead the user to request verification again
-            } else if (code == "-10") {
-              // 预判断时被封禁, 不会再进行图形验证 Banned during pre-judgment, and no more image captcha verification
-            } else if (code == "-2") {
-              // Dart 调用异常 Call exception
-            } else if (code == "-1") {
-              // Gt3RegisterData 参数不合法  Parameter is invalid
-            } else {
-              // 更多错误码参考开发文档 More error codes refer to the development document
-              // https://docs.geetest.com/sensebot/apirefer/errorcode/ios
-            }
-          }
-        },
-      )
-      ..startCaptcha(registerData);
   }
 
   static Future<void> showUserRealName(String mid) async {

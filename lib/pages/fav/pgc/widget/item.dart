@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -33,7 +33,7 @@ class FavPgcItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme = ColorScheme.of(context);
     return Material(
       type: MaterialType.transparency,
       child: Stack(
@@ -51,7 +51,7 @@ class FavPgcItem extends StatelessWidget {
             onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: StyleString.safeSpace,
+                horizontal: Style.safeSpace,
                 vertical: 5,
               ),
               child: Row(
@@ -60,45 +60,41 @@ class FavPgcItem extends StatelessWidget {
                   AspectRatio(
                     aspectRatio: 3 / 4,
                     child: LayoutBuilder(
-                      builder:
-                          (
-                            BuildContext context,
-                            BoxConstraints boxConstraints,
-                          ) {
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                NetworkImgLayer(
-                                  src: item.cover,
-                                  width: boxConstraints.maxWidth,
-                                  height: boxConstraints.maxHeight,
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(4),
-                                  ),
+                      builder: (context, boxConstraints) {
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            NetworkImgLayer(
+                              src: item.cover,
+                              width: boxConstraints.maxWidth,
+                              height: boxConstraints.maxHeight,
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(4),
+                              ),
+                            ),
+                            PBadge(
+                              right: 4,
+                              top: 4,
+                              text: item.badge,
+                              size: PBadgeSize.small,
+                              fontSize: 10,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 1,
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: selectMask(
+                                colorScheme,
+                                item.checked,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(4),
                                 ),
-                                PBadge(
-                                  right: 4,
-                                  top: 4,
-                                  text: item.badge,
-                                  size: PBadgeSize.small,
-                                  fontSize: 10,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 2,
-                                    vertical: 1,
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: selectMask(
-                                    theme,
-                                    item.checked,
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(4),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -114,7 +110,7 @@ class FavPgcItem extends StatelessWidget {
                             '${item.newEp!.indexShow}${item.isFinish == 0 && item.renewalTime?.isNotEmpty == true ? '，${item.renewalTime}' : ''}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -126,7 +122,7 @@ class FavPgcItem extends StatelessWidget {
                             item.progress!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -144,7 +140,7 @@ class FavPgcItem extends StatelessWidget {
               iconSize: 18,
               onPressed: onUpdateStatus,
               icon: const Icon(Icons.more_vert),
-              iconColor: theme.colorScheme.outline,
+              iconColor: colorScheme.outline,
             ),
           ),
         ],

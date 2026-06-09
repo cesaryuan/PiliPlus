@@ -24,15 +24,19 @@ import 'package:PiliPlus/common/widgets/image_viewer/image.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/loading_indicator.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/viewer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/main.dart' show tmpPadding;
 import 'package:PiliPlus/models/common/image_preview_type.dart';
+import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
+import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Image, PageView;
@@ -53,6 +57,8 @@ class GalleryViewer extends StatefulWidget {
     required this.quality,
     required this.sources,
     this.initIndex = 0,
+    this.onPageChanged,
+    this.tag = '',
   });
 
   final double minScale;
@@ -60,6 +66,8 @@ class GalleryViewer extends StatefulWidget {
   final int quality;
   final List<SourceModel> sources;
   final int initIndex;
+  final ValueChanged<int>? onPageChanged;
+  final String tag;
 
   @override
   State<GalleryViewer> createState() => _GalleryViewerState();
@@ -71,6 +79,7 @@ class _GalleryViewerState extends State<GalleryViewer>
   late final int _quality;
   late final RxInt _currIndex;
   GlobalKey? _key;
+  EdgeInsets? _padding;
 
   late bool _hasInit = false;
   Player? _player;
@@ -165,6 +174,44 @@ class _GalleryViewerState extends State<GalleryViewer>
     );
   }
 
+  late final bool _hideSystemBar;
+
+  void _initHideSystemBar() {
+    if (Platform.isAndroid) {
+      if (showSystemBar_) {
+        final size = DeviceUtils.size;
+        _hideSystemBar = !MaxScreenSize.isWindowMode(
+          width: size.width,
+          height: size.height,
+        );
+      } else {
+        _hideSystemBar = false;
+      }
+    } else if (Platform.isIOS) {
+      _hideSystemBar = showSystemBar_;
+    } else {
+      _hideSystemBar = false;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_padding == null) {
+      final padding = MediaQuery.viewPaddingOf(context);
+      _padding = padding;
+      _initHideSystemBar();
+      if (_hideSystemBar) {
+        tmpPadding = padding;
+        hideSystemBar()!.whenComplete(
+          () => WidgetsBinding.instance.addPostFrameCallback(
+            (_) => tmpPadding = null,
+          ),
+        );
+      }
+    }
+  }
+
   Matrix4 _onTransform(double val) {
     final scale = val.lerp(1.0, 0.25);
 
@@ -254,6 +301,9 @@ class _GalleryViewerState extends State<GalleryViewer>
     }
     Future.delayed(const Duration(milliseconds: 200), _currIndex.close);
     super.dispose();
+    if (_hideSystemBar) {
+      showSystemBar();
+    }
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -306,9 +356,7 @@ class _GalleryViewerState extends State<GalleryViewer>
     right: 0,
     child: IgnorePointer(
       child: Container(
-        padding:
-            MediaQuery.viewPaddingOf(context) +
-            const EdgeInsets.fromLTRB(12, 8, 20, 8),
+        padding: _padding! + const EdgeInsets.fromLTRB(12, 8, 20, 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -345,6 +393,7 @@ class _GalleryViewerState extends State<GalleryViewer>
     _player?.pause();
     _playIfNeeded(widget.sources[index]);
     _currIndex.value = index;
+    widget.onPageChanged?.call(index);
   }
 
   late final ValueChanged<int>? _onChangePage = widget.sources.length == 1
@@ -403,8 +452,12 @@ class _GalleryViewerState extends State<GalleryViewer>
                 return child;
               } else {
                 return Image(
-                  image: CachedNetworkImageProvider(
-                    ImageUtils.thumbnailUrl(item.url, widget.quality),
+                  image: ResizeImage.resizeIfNeeded(
+                    _containerSize.width.cacheSize(context),
+                    null,
+                    CachedNetworkImageProvider(
+                      ImageUtils.thumbnailUrl(item.url, widget.quality),
+                    ),
                   ),
                   minScale: widget.minScale,
                   maxScale: widget.maxScale,
@@ -464,7 +517,7 @@ class _GalleryViewerState extends State<GalleryViewer>
               : const SizedBox.shrink(),
         );
     }
-    return Hero(tag: item.url, child: child);
+    return Hero(tag: '${item.url}${widget.tag}', child: child);
   }
 
   void _onTap() {

@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -62,7 +62,7 @@ class VideoCardHLater extends StatelessWidget {
                   return;
                 }
                 try {
-                  final int? cid =
+                  final cid =
                       videoItem.cid ??
                       await SearchHttp.ab2c(
                         aid: videoItem.aid,
@@ -77,14 +77,14 @@ class VideoCardHLater extends StatelessWidget {
               },
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: StyleString.safeSpace,
+            horizontal: Style.safeSpace,
             vertical: 5,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               AspectRatio(
-                aspectRatio: StyleString.aspectRatio,
+                aspectRatio: Style.aspectRatio,
                 child: LayoutBuilder(
                   builder: (context, boxConstraints) {
                     final double maxWidth = boxConstraints.maxWidth;
@@ -157,7 +157,7 @@ class VideoCardHLater extends StatelessWidget {
                           ),
                         Positioned.fill(
                           child: selectMask(
-                            theme,
+                            theme.colorScheme,
                             videoItem.checked,
                           ),
                         ),

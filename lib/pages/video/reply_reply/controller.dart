@@ -6,7 +6,6 @@ import 'package:PiliPlus/pages/common/publish/publish_route.dart';
 import 'package:PiliPlus/pages/common/reply_controller.dart';
 import 'package:PiliPlus/pages/video/reply_new/view.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
-import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:fixnum/fixnum.dart';
@@ -34,7 +33,7 @@ class VideoReplyReplyController extends ReplyController
   int replyType;
 
   bool hasRoot = false;
-  final Rx<ReplyInfo?> firstFloor = Rx(null);
+  final firstFloor = Rxn<ReplyInfo>();
 
   final index = RxnInt();
 
@@ -54,7 +53,7 @@ class VideoReplyReplyController extends ReplyController
   @override
   void onInit() {
     super.onInit();
-    mode.value = Mode.MAIN_LIST_TIME;
+    mode = Mode.MAIN_LIST_TIME;
     queryData();
   }
 
@@ -133,18 +132,9 @@ class VideoReplyReplyController extends ReplyController
           oid: oid,
           root: rpid,
           rpid: id ?? 0,
-          mode: mode.value,
+          mode: mode,
           offset: paginationReply?.nextOffset,
         );
-
-  @override
-  void queryBySort() {
-    if (isLoading) return;
-    mode.value = mode.value == Mode.MAIN_LIST_HOT
-        ? Mode.MAIN_LIST_TIME
-        : Mode.MAIN_LIST_HOT;
-    onReload();
-  }
 
   @override
   Future<void> onReload() {
@@ -195,10 +185,9 @@ class VideoReplyReplyController extends ReplyController
             },
           ),
         )
-        .then((res) {
-          if (res != null) {
+        .then((replyInfo) {
+          if (replyInfo is ReplyInfo) {
             savedReplies.remove(key);
-            ReplyInfo replyInfo = RequestUtils.replyCast(res);
 
             count.value += 1;
             loadingState

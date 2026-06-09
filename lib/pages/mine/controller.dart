@@ -11,10 +11,10 @@ import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
-import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -32,7 +32,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   // 用户状态 动态、关注、粉丝
   final Rx<UserStat> userStat = const UserStat().obs;
 
-  Rx<ThemeType> themeType = Pref.themeType.obs;
+  final Rx<ThemeType> themeType = Pref.themeType.obs;
 
   ThemeType get nextThemeType =>
       ThemeType.values[(themeType.value.index + 1) % ThemeType.values.length];
@@ -69,7 +69,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
           },
         ),
         (
-          size: 22,
+          size: 21,
           icon: Icons.watch_later_outlined,
           title: '稍后再看',
           onTap: () {
@@ -111,19 +111,21 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
           ..face.value = response.face!
           ..isLogin.value = true;
       } else {
-        LoginUtils.onLogoutMain();
+        _onLogoutMain();
         return;
       }
     } else {
       final errMsg = res.toString();
       SmartDialog.showToast(errMsg);
       if (errMsg == '账号未登录') {
-        LoginUtils.onLogoutMain();
+        _onLogoutMain();
         return;
       }
     }
     queryUserStatOwner();
   }
+
+  void _onLogoutMain() => Accounts.deleteAll({Accounts.main});
 
   Future<void> queryUserStatOwner() async {
     final res = await UserHttp.userStatOwner();
@@ -136,7 +138,6 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   bool customHandleResponse(bool isRefresh, Success<FavFolderData> response) {
     favFolderCount = response.response.count;
     loadingState.value = response;
-    scrollController.jumpToTop();
     return true;
   }
 
@@ -190,9 +191,10 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '搜索、观看视频/直播不携带身份信息（包含大会员）\n'
+                    '搜索不携带身份信息\n'
                     '不产生查询或播放记录\n'
                     '点赞等其它操作不受影响\n'
+                    '播放进度信息跟随视频取流\n'
                     '(前往隐私设置了解详情)',
                     style: theme.textTheme.bodySmall,
                   ),
@@ -267,7 +269,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
     final newVal = nextThemeType;
     themeType.value = newVal;
     GStorage.setting.put(SettingBoxKey.themeMode, newVal.index);
-    Get.changeThemeMode(newVal.toThemeMode);
+    Get.changeThemeMode(ThemeUtils.themeMode = newVal.toThemeMode);
   }
 
   void push(String name) {
@@ -286,12 +288,16 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   }
 
   @override
-  Future<void> onRefresh() {
+  Future<void> onRefresh({bool isManual = true}) {
     if (!accountService.isLogin.value) {
       return Future.syncValue(null);
     }
     queryUserInfo();
-    return super.onRefresh();
+    return super.onRefresh().whenComplete(() {
+      if (isManual) {
+        scrollController.jumpToTop();
+      }
+    });
   }
 
   @override

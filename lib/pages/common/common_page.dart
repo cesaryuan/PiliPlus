@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/constants.dart' show StyleString;
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
@@ -10,6 +10,8 @@ abstract class CommonPageState<T extends StatefulWidget> extends State<T> {
   RxBool? _showTopBar;
   RxBool? _showBottomBar;
   final _mainController = Get.find<MainController>();
+
+  bool get needsCorrection => false;
 
   @override
   void initState() {
@@ -56,18 +58,39 @@ abstract class CommonPageState<T extends StatefulWidget> extends State<T> {
     _barOffset!.value = clampDouble(
       _barOffset!.value + scrollDelta,
       0.0,
-      StyleString.topBarHeight,
+      Style.topBarHeight,
     );
   }
 
   bool onNotificationType2(ScrollNotification notification) {
     if (!_mainController.useBottomNav) return false;
 
-    if (notification.metrics.axis == .horizontal) return false;
+    final metrics = notification.metrics;
+    if (metrics.axis == .horizontal) return false;
 
     if (notification is ScrollUpdateNotification) {
       if (notification.dragDetails == null) return false;
-      _updateOffset(notification.scrollDelta ?? 0.0);
+      final pixel = metrics.pixels;
+      final scrollDelta = notification.scrollDelta ?? 0;
+      if (pixel < 0.0 && scrollDelta > 0) return false;
+      if (needsCorrection) {
+        final value = _barOffset!.value;
+        final newValue = clampDouble(
+          value + scrollDelta,
+          0.0,
+          Style.topBarHeight,
+        );
+        final offset = value - newValue;
+        if (offset != 0) {
+          _barOffset!.value = newValue;
+          if (pixel < 0.0 && scrollDelta < 0.0 && value > 0.0) {
+            return false;
+          }
+          Scrollable.of(notification.context!).position.correctBy(offset);
+        }
+      } else {
+        _updateOffset(scrollDelta);
+      }
       return false;
     }
 

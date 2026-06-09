@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -72,7 +72,7 @@ class DetailItem extends StatelessWidget {
                       Get.back();
                       showConfirmDialog(
                         context: context,
-                        title: '确定删除该视频？',
+                        title: const Text('确定删除该视频？'),
                         onConfirm: onDelete,
                       );
                     },
@@ -125,6 +125,7 @@ class DetailItem extends StatelessWidget {
               cid: cid!,
               cover: entry.cover,
               title: entry.showTitle,
+              isVertical: entry.pageData?.isVertical ?? false,
               extraArguments: {
                 'sourceType': SourceType.file,
                 'entry': entry,
@@ -157,7 +158,7 @@ class DetailItem extends StatelessWidget {
         onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: StyleString.safeSpace,
+            horizontal: Style.safeSpace,
             vertical: 5,
           ),
           child: Row(
@@ -167,7 +168,7 @@ class DetailItem extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   AspectRatio(
-                    aspectRatio: StyleString.aspectRatio,
+                    aspectRatio: Style.aspectRatio,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final cover = File(
@@ -183,7 +184,7 @@ class DetailItem extends StatelessWidget {
                         }
                         return cover.existsSync()
                             ? ClipRRect(
-                                borderRadius: StyleString.mdRadius,
+                                borderRadius: Style.mdRadius,
                                 child: Image.file(
                                   cover,
                                   width: maxWidth,
@@ -273,7 +274,10 @@ class DetailItem extends StatelessWidget {
                       type: PBadgeType.gray,
                     ),
                   Positioned.fill(
-                    child: selectMask(theme, checked ?? entry.checked),
+                    child: selectMask(
+                      theme.colorScheme,
+                      checked ?? entry.checked,
+                    ),
                   ),
                 ],
               ),
@@ -341,7 +345,7 @@ class DetailItem extends StatelessWidget {
                       Positioned(
                         right: 0,
                         bottom: 0,
-                        child: entry.moreBtn(theme),
+                        child: entry.moreBtn(theme.colorScheme),
                       ),
                     ] else
                       Positioned(
@@ -442,7 +446,7 @@ class DetailItem extends StatelessWidget {
           // ignore: deprecated_member_use
           year2023: true,
           minHeight: 2.5,
-          borderRadius: StyleString.mdRadius,
+          borderRadius: Style.mdRadius,
           color: color,
           backgroundColor: highlightColor,
           value: progress,

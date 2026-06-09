@@ -1,5 +1,6 @@
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
+import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
@@ -8,12 +9,15 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/fav_order_type.dart';
 import 'package:PiliPlus/models_new/fav/fav_detail/media.dart';
 import 'package:PiliPlus/models_new/fav/fav_folder/list.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart'
+    show NoRightMarginFabLocation;
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/pages/fav_detail/controller.dart';
 import 'package:PiliPlus/pages/fav_detail/widget/fav_video_card.dart';
-import 'package:PiliPlus/utils/fav_utils.dart';
+import 'package:PiliPlus/utils/bili_utils.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -49,7 +53,7 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
     return Obx(
       () {
         final enableMultiSelect = _favDetailController.enableMultiSelect.value;
-        return PopScope(
+        return popScope(
           canPop: !enableMultiSelect,
           onPopInvokedWithResult: (didPop, result) {
             if (enableMultiSelect) {
@@ -58,7 +62,7 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
           },
           child: Scaffold(
             resizeToAvoidBottomInset: false,
-            floatingActionButtonLocation: const CustomFabLocation(),
+            floatingActionButtonLocation: const NoRightMarginFabLocation(),
             floatingActionButton: Padding(
               padding: const EdgeInsets.only(
                 right: kFloatingActionButtonMargin,
@@ -191,12 +195,12 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
       ),
       Obx(() {
         final attr = _favDetailController.folderInfo.value.attr;
-        return attr == -1 || !FavUtils.isPublicFav(attr)
+        return attr == -1 || !BiliUtils.isPublicFav(attr)
             ? const SizedBox.shrink()
             : IconButton(
                 iconSize: 22,
                 tooltip: '分享',
-                onPressed: () => Utils.shareText(
+                onPressed: () => ShareUtils.shareText(
                   'https://www.bilibili.com/medialist/detail/ml${_favDetailController.mediaId}',
                 ),
                 icon: const Icon(Icons.share),
@@ -251,7 +255,7 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
                     _favDetailController.onFav(folderInfo.favState == 1),
                 child: Text('${folderInfo.favState == 1 ? '取消' : ''}收藏'),
               ),
-            if (FavUtils.isPublicFav(folderInfo.attr))
+            if (BiliUtils.isPublicFav(folderInfo.attr))
               PopupMenuItem(
                 onTap: () => showModalBottomSheet(
                   context: context,
@@ -272,12 +276,12 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
                 onTap: _favDetailController.cleanFav,
                 child: const Text('清除失效内容'),
               ),
-              if (!FavUtils.isDefaultFav(folderInfo.attr)) ...[
+              if (!BiliUtils.isDefaultFav(folderInfo.attr)) ...[
                 const PopupMenuDivider(height: 12),
                 PopupMenuItem(
                   onTap: () => showConfirmDialog(
                     context: context,
-                    title: '确定删除该收藏夹?',
+                    title: const Text('确定删除该收藏夹?'),
                     onConfirm: () =>
                         FavHttp.deleteFolder(mediaIds: mediaId).then((res) {
                           if (res.isSuccess) {
@@ -449,7 +453,7 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
                           ],
                           Text(
                             '共${folderInfo.mediaCount}条视频 · '
-                            '${FavUtils.isPublicFavText(folderInfo.attr)}',
+                            '${BiliUtils.isPublicFavText(folderInfo.attr)}',
                             style: style,
                           ),
                         ],
@@ -505,20 +509,5 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
         onReload: _favDetailController.onReload,
       ),
     };
-  }
-}
-
-class CustomFabLocation extends StandardFabLocation with FabFloatOffsetY {
-  const CustomFabLocation();
-
-  @override
-  double getOffsetX(
-    ScaffoldPrelayoutGeometry scaffoldGeometry,
-    double adjustment,
-  ) {
-    return scaffoldGeometry.scaffoldSize.width -
-        scaffoldGeometry.minInsets.right -
-        scaffoldGeometry.floatingActionButtonSize.width +
-        adjustment;
   }
 }

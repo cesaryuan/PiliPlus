@@ -7,8 +7,8 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/common_btn.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show shutdownTimerService;
+import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -24,6 +24,7 @@ class LiveHeaderControl extends StatefulWidget {
     required this.onPlayAudio,
     required this.isPortrait,
     required this.liveController,
+    required this.onlineWidget,
   });
 
   final String? title;
@@ -33,6 +34,7 @@ class LiveHeaderControl extends StatefulWidget {
   final VoidCallback onPlayAudio;
   final bool isPortrait;
   final LiveRoomController liveController;
+  final Widget onlineWidget;
 
   @override
   State<LiveHeaderControl> createState() => _LiveHeaderControlState();
@@ -90,7 +92,7 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                   ),
                 ),
               liveController.watchedWidget,
-              liveController.onlineWidget,
+              widget.onlineWidget,
               liveController.timeWidget,
             ],
           ),
@@ -157,12 +159,12 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
             ComBtn(
               height: 30,
               tooltip: '画中画',
-              onTap: () async {
+              onTap: () {
                 if (PlatformUtils.isDesktop) {
                   plPlayerController.toggleDesktopPip();
                   return;
                 }
-                if (await Floating().isPipAvailable) {
+                if (AndroidHelper.isPipAvailable) {
                   plPlayerController.enterPip();
                 }
               },
@@ -196,26 +198,27 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
               );
             },
           ),
-          Obx(() {
-            final continuePlayInBackground =
-                plPlayerController.continuePlayInBackground.value;
-            return ComBtn(
-              height: 30,
-              tooltip: '${continuePlayInBackground ? '关闭' : ''}后台播放',
-              onTap: plPlayerController.setContinuePlayInBackground,
-              icon: continuePlayInBackground
-                  ? const Icon(
-                      size: 18,
-                      Icons.play_circle,
-                      color: Colors.white,
-                    )
-                  : const Icon(
-                      size: 18,
-                      Icons.play_circle_outline,
-                      color: Colors.white,
-                    ),
-            );
-          }),
+          if (PlatformUtils.isMobile)
+            Obx(() {
+              final continuePlayInBackground =
+                  plPlayerController.continuePlayInBackground.value;
+              return ComBtn(
+                height: 30,
+                tooltip: '${continuePlayInBackground ? '关闭' : ''}后台播放',
+                onTap: plPlayerController.setContinuePlayInBackground,
+                icon: continuePlayInBackground
+                    ? const Icon(
+                        size: 18,
+                        Icons.play_circle,
+                        color: Colors.white,
+                      )
+                    : const Icon(
+                        size: 18,
+                        Icons.play_circle_outline,
+                        color: Colors.white,
+                      ),
+              );
+            }),
           ComBtn(
             height: 30,
             tooltip: '定时关闭',
