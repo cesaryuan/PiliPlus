@@ -259,7 +259,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
     if (kReleaseMode && episode.badge == '会员' && Accounts.mainEqVideo) {
       // For PGC content
       if (widget.pgcItem != null) {
-        final upVipStatus = widget.pgcItem!.upInfo?.vipStatus;
+        final upVipStatus = 1;
         if (upVipStatus != 1) {
           if (!isDownloadAll) {
             SmartDialog.showToast('需要大会员');
